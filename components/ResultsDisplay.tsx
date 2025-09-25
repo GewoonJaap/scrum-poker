@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import type { CardData } from '../types';
 import PokerCard from './PokerCard';
 import CardBack from './CardBack';
+import Confetti from './Confetti';
+import Avatar from './Avatar';
 
 interface User {
   id: string;
@@ -13,49 +15,123 @@ interface ResultsDisplayProps {
   users: User[];
 }
 
+interface VoteGroup {
+    card: CardData;
+    users: User[];
+}
+
 const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ users }) => {
-  const votes = users.filter(u => u.vote);
   const [isFlipped, setIsFlipped] = useState(false);
 
+  // --- Data Processing ---
+
+  // 1. Group users by their vote
+  const voteGroups = users.reduce((acc, user) => {
+    if (user.vote) {
+      const voteValue = user.vote.value;
+      if (!acc[voteValue]) {
+        acc[voteValue] = {
+          card: user.vote,
+          users: [],
+        };
+      }
+      acc[voteValue].users.push(user);
+    }
+    return acc;
+  }, {} as Record<string, VoteGroup>);
+
+  // 2. Sort the groups for consistent display order
+  const getSortableValue = (value: string): number => {
+    if (value === '∞') return Infinity;
+    if (['☕', '?'].includes(value)) return 1000;
+    const num = parseInt(value, 10);
+    return isNaN(num) ? 1001 : num;
+  };
+
+  const sortedVoteGroups = Object.values(voteGroups).sort((a, b) => {
+    return getSortableValue(a.card.value) - getSortableValue(b.card.value);
+  });
+  
+  // 3. Check for unanimity
+  const votesCast = users.filter(u => u.vote).length;
+  const isUnanimous = sortedVoteGroups.length === 1 && votesCast > 1;
+
+  // 4. Calculate the average of numeric votes
+  const numericVotes = users
+    .map(user => (user.vote ? parseInt(user.vote.value, 10) : NaN))
+    .filter(value => !isNaN(value));
+    
+  const average = numericVotes.length > 0
+    ? (numericVotes.reduce((sum, v) => sum + v, 0) / numericVotes.length).toFixed(1)
+    : null;
+
+  // --- Animation ---
+  
   useEffect(() => {
-    // Add a small delay to ensure the transition is visible on mount
-    const timer = setTimeout(() => {
-      setIsFlipped(true);
-    }, 100);
+    const timer = setTimeout(() => setIsFlipped(true), 100);
     return () => clearTimeout(timer);
   }, []);
 
+
   return (
     <div className="w-full">
-        <h2 className="text-2xl font-semibold text-center text-slate-700 mb-6">Results</h2>
-        {votes.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {votes.map((user, index) => (
-                    user.vote && (
-                        <div key={user.id} className="flex flex-col items-center">
-                            <div className="w-full [perspective:1000px]">
-                                <div
-                                    className={`relative w-full transition-transform duration-700 ease-out [transform-style:preserve-3d] ${isFlipped ? '' : '[transform:rotateY(180deg)]'}`}
-                                    style={{ transitionDelay: `${index * 50}ms` }}
-                                >
-                                    <div className="[backface-visibility:hidden]">
-                                        <PokerCard card={user.vote} isSelected={false} onClick={() => {}} size="small" />
-                                    </div>
-                                    <div
-                                        className="absolute top-0 left-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)]"
-                                    >
-                                        <CardBack size="small" />
-                                    </div>
-                                </div>
-                            </div>
-                            <p className="mt-2 font-semibold text-slate-600">{user.name}</p>
-                        </div>
-                    )
-                ))}
-            </div>
+      {isUnanimous && <Confetti />}
+      
+      <div className="text-center mb-8">
+        {isUnanimous ? (
+          <h2 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 animate-bounce">
+            UNANIMOUS!
+          </h2>
         ) : (
-            <p className="text-center text-slate-500">No votes were cast.</p>
+          <h2 className="text-3xl font-bold text-slate-700">Results</h2>
         )}
+      </div>
+
+      {average && !isUnanimous && (
+        <div className="text-center mb-8 bg-white p-4 rounded-lg shadow-md max-w-xs mx-auto">
+            <h3 className="text-lg font-semibold text-slate-600">Average Estimate</h3>
+            <p className="text-5xl font-bold text-sky-600 tracking-tight">{average}</p>
+        </div>
+      )}
+
+      {votesCast > 0 ? (
+        <div className="flex flex-wrap justify-center gap-x-6 gap-y-8">
+          {sortedVoteGroups.map((group, index) => (
+            <div key={group.card.value} className="flex flex-col items-center w-[160px]">
+              <div className="w-full [perspective:1000px]">
+                <div
+                  className={`relative w-full transition-transform duration-700 ease-out [transform-style:preserve-3d] ${isFlipped ? '' : '[transform:rotateY(180deg)]'}`}
+                  style={{ transitionDelay: `${index * 70}ms` }}
+                >
+                  <div className="[backface-visibility:hidden]">
+                    <div className="relative">
+                        <PokerCard card={group.card} isSelected={false} onClick={() => {}} size="small" />
+                        <span className="absolute -top-3 -right-3 bg-sky-500 text-white text-base rounded-full h-8 w-8 flex items-center justify-center font-bold border-2 border-white shadow-md">
+                            {group.users.length}
+                        </span>
+                    </div>
+                  </div>
+                  <div className="absolute top-0 left-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)]">
+                    <CardBack size="small" />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 w-full space-y-1">
+                {group.users.map(u => (
+                  <div key={u.id} className="flex items-center gap-2 px-2" title={u.name}>
+                    <Avatar name={u.name} size={20} />
+                    <p className="text-sm font-medium text-slate-600 truncate flex-1 text-left">
+                      {u.name}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-center text-slate-500">No votes were cast.</p>
+      )}
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { CardData } from '../types';
 import CardBack from './CardBack';
+import Avatar from './Avatar';
 
 interface User {
   id: string;
@@ -24,7 +25,10 @@ const VotingDisplay: React.FC<VotingDisplayProps> = ({ users }) => {
             {votes.map((user) => (
                 <div key={user.id} className="flex flex-col items-center">
                     <CardBack size="small" />
-                    <p className="mt-2 font-semibold text-slate-600">{user.name}</p>
+                    <div className="mt-2 flex items-center gap-2 w-full justify-center px-1" title={user.name}>
+                        <Avatar name={user.name} size={24} />
+                        <p className="font-semibold text-slate-600 truncate">{user.name}</p>
+                    </div>
                 </div>
             ))}
         </div>

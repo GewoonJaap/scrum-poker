@@ -47,7 +47,7 @@ const PokerCard: React.FC<PokerCardProps> = ({ card, isSelected, onClick, size =
         p-2 rounded-lg shadow-lg text-white font-black
         flex flex-col relative
         transition-all duration-300 ease-in-out transform
-        ${!isSelected ? 'cursor-pointer hover:scale-105 hover:shadow-2xl' : 'opacity-80'}
+        ${!isSelected ? 'cursor-pointer hover:scale-105 hover:-translate-y-1 hover:shadow-xl' : 'opacity-80'}
         ${isSelected ? 'ring-4 ring-offset-2 ring-yellow-400 scale-105' : ''}
       `}
       onClick={clickHandler}

@@ -16,6 +16,18 @@
   }
 }
 </script>
+<style>
+  @keyframes confetti-burst {
+    0% {
+      transform: translateY(0) rotate(var(--rotation-start));
+      opacity: 1;
+    }
+    100% {
+      transform: translate(var(--x-end), var(--y-end)) rotate(var(--rotation-end));
+      opacity: 0;
+    }
+  }
+</style>
 </head>
   <body class="bg-slate-100">
     <div id="root"></div>
