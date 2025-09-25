@@ -48,7 +48,7 @@ const PokerCard: React.FC<PokerCardProps> = ({ card, isSelected, onClick, size =
         flex flex-col relative
         transition-all duration-300 ease-in-out transform
         ${!isSelected ? 'cursor-pointer hover:scale-105 hover:-translate-y-1 hover:shadow-xl' : 'opacity-80'}
-        ${isSelected ? 'ring-4 ring-offset-2 ring-yellow-400 scale-105' : ''}
+        ${isSelected ? 'ring-4 ring-offset-2 ring-yellow-400 scale-105 ring-offset-slate-100 dark:ring-offset-slate-900' : ''}
       `}
       onClick={clickHandler}
       aria-label={`Planning Poker card with value ${card.value}`}

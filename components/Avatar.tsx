@@ -19,7 +19,7 @@ const Avatar: React.FC<AvatarProps> = ({ name, avatarId, size = 32 }) => {
 
   return (
     <div 
-      className="rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-slate-200"
+      className="rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-slate-200 dark:bg-slate-600"
       style={{ width: size, height: size }}
       title={name}
       aria-label={`Avatar for ${name}`}

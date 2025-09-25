@@ -26,9 +26,10 @@ const CardBack: React.FC<CardBackProps> = ({ size = 'small' }) => {
                 p-4 rounded-lg shadow-lg
                 flex items-center justify-center relative
                 bg-slate-700 border-4 border-slate-300
+                dark:bg-slate-800 dark:border-slate-500
             `}
         >
-            <CardCornerIcon className={`${currentSize.logo} text-slate-400 opacity-50`} strokeWidth={2} />
+            <CardCornerIcon className={`${currentSize.logo} text-slate-400 dark:text-slate-500 opacity-50`} strokeWidth={2} />
         </div>
     );
 };

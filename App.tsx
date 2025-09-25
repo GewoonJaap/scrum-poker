@@ -10,19 +10,30 @@ import { ArrowLeft } from 'lucide-react';
 import VotingDisplay from './components/VotingDisplay';
 import AnimatingCard from './components/AnimatingCard';
 import DeckSelector from './components/DeckSelector';
+import ThemeSwitcher from './components/ThemeSwitcher';
+import BuyMeACoffee from './components/BuyMeACoffee';
+
+type Theme = 'light' | 'dark' | 'system';
 
 // --- Landing Page Component ---
 
 interface LandingPageProps {
     onNavigateToRoom: (code: string) => void;
+    theme: Theme;
+    setTheme: (theme: Theme) => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToRoom }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToRoom, theme, setTheme }) => {
     const [roomCode, setRoomCode] = useState('');
 
     const generateRoomCode = () => {
-        // Generates a 6-character alphanumeric code.
-        return Math.random().toString(36).substring(2, 8).toUpperCase();
+        // Generates a 6-character code from a specific set to avoid ambiguous characters (e.g., O/0).
+        const chars = 'ABCDEFGHIJKLMNPQRSTUVWXYZ123456789';
+        let result = '';
+        for (let i = 0; i < 6; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
     };
 
     const handleCreateRoom = () => {
@@ -38,10 +49,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToRoom }) => {
     };
 
     return (
-        <div className="min-h-screen bg-[#e0f7fa] flex flex-col items-center justify-center p-4 font-sans">
-            <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md text-center">
-                <h1 className="text-4xl sm:text-5xl font-bold text-slate-700 mb-4">Planning Poker</h1>
-                <p className="text-slate-500 mb-8">Estimate tasks with your team, in real-time.</p>
+        <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex flex-col items-center justify-center p-4 font-sans relative">
+            <div className="absolute top-4 right-4 z-10">
+                <ThemeSwitcher theme={theme} setTheme={setTheme} />
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-lg w-full max-w-md text-center">
+                <h1 className="text-4xl sm:text-5xl font-bold text-slate-700 dark:text-slate-100 mb-4">Planning Poker</h1>
+                <p className="text-slate-500 dark:text-slate-400 mb-8">Estimate tasks with your team, in real-time.</p>
 
                 <button
                     onClick={handleCreateRoom}
@@ -51,9 +65,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToRoom }) => {
                 </button>
 
                 <div className="flex items-center my-6">
-                    <hr className="flex-grow border-t border-slate-300" />
-                    <span className="px-4 text-slate-500 font-semibold">OR</span>
-                    <hr className="flex-grow border-t border-slate-300" />
+                    <hr className="flex-grow border-t border-slate-300 dark:border-slate-600" />
+                    <span className="px-4 text-slate-500 dark:text-slate-400 font-semibold">OR</span>
+                    <hr className="flex-grow border-t border-slate-300 dark:border-slate-600" />
                 </div>
 
                 <form onSubmit={handleJoinRoom}>
@@ -63,7 +77,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToRoom }) => {
                         type="text"
                         value={roomCode}
                         onChange={(e) => setRoomCode(e.target.value)}
-                        className="w-full px-4 py-3 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-center uppercase tracking-widest text-lg"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-center uppercase tracking-widest text-lg dark:bg-slate-700 dark:border-slate-500 dark:text-white dark:placeholder-slate-400"
                         placeholder="ENTER CODE"
                         maxLength={6}
                         required
@@ -76,8 +90,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToRoom }) => {
                     </button>
                 </form>
             </div>
-             <footer className="w-full max-w-5xl mx-auto text-center mt-12 text-slate-500 text-sm">
+             <footer className="w-full max-w-5xl mx-auto text-center mt-12 text-slate-500 dark:text-slate-400 text-sm flex flex-col items-center gap-4">
                 <p>Built with React, Cloudflare Workers, and Durable Objects.</p>
+                <BuyMeACoffee />
             </footer>
         </div>
     );
@@ -96,15 +111,18 @@ interface User {
 interface PokerRoomProps {
     roomCode: string;
     onLeave: () => void;
+    theme: Theme;
+    setTheme: (theme: Theme) => void;
 }
 
-const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
+const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setTheme }) => {
   const [userId, setUserId] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [revealed, setRevealed] = useState(false);
   const [deckId, setDeckId] = useState('fibonacci');
   const [isNameModalOpen, setIsNameModalOpen] = useState(false);
   const [animatingCard, setAnimatingCard] = useState<{ card: CardData; rect: DOMRect } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let currentUserId = localStorage.getItem('userId');
@@ -174,6 +192,15 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
   const handleAnimationEnd = () => {
     setAnimatingCard(null);
   }
+
+  const handleCopyCode = () => {
+      navigator.clipboard.writeText(roomCode).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000); // Reset feedback after 2 seconds
+      }).catch(err => {
+          console.error('Failed to copy room code: ', err);
+      });
+  };
   
   const currentUser = users.find(u => u.id === userId);
   const isHost = users.length > 0 && users[0].id === userId;
@@ -181,7 +208,7 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
   const cardsToDisplay = DECKS[deckId]?.cards || DECKS.fibonacci.cards;
 
   return (
-    <div className="min-h-screen bg-[#e0f7fa] flex flex-col items-center p-4 sm:p-8 font-sans">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex flex-col items-center p-4 sm:p-8 font-sans">
       <SetNameModal isOpen={isNameModalOpen} onSave={handleSaveProfile} />
        {animatingCard && (
           <AnimatingCard
@@ -193,13 +220,25 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
       <header className="w-full max-w-6xl mx-auto text-center mb-8 relative">
         <button 
           onClick={onLeave} 
-          className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-slate-200 transition-colors"
+          className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
           aria-label="Leave Room"
         >
-            <ArrowLeft className="h-6 w-6 text-slate-600" />
+            <ArrowLeft className="h-6 w-6 text-slate-600 dark:text-slate-400" />
         </button>
-        <h1 className="text-4xl sm:text-5xl font-bold text-slate-700">Planning Poker</h1>
-        <p className="text-slate-500">Room: <span className="font-mono bg-slate-200 px-2 py-1 rounded">{roomCode}</span></p>
+        <h1 className="text-4xl sm:text-5xl font-bold text-slate-700 dark:text-slate-100">Planning Poker</h1>
+        <p className="text-slate-500 dark:text-slate-400">
+            Room:
+            <button 
+                onClick={handleCopyCode}
+                className="font-mono bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded ml-2 transition-colors hover:bg-slate-300 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                title="Click to copy room code"
+            >
+                {copied ? 'Copied!' : roomCode}
+            </button>
+        </p>
+         <div className="absolute right-0 top-1/2 -translate-y-1/2">
+            <ThemeSwitcher theme={theme} setTheme={setTheme} />
+        </div>
       </header>
 
       <main className="w-full max-w-6xl mx-auto flex-grow flex flex-col items-center">
@@ -217,7 +256,7 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
                     )}
                    <button
                         onClick={() => setIsNameModalOpen(true)}
-                        className="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg shadow-sm hover:bg-slate-300 transition-colors w-full"
+                        className="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg shadow-sm hover:bg-slate-300 transition-colors w-full dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                     >
                         Edit Profile
                     </button>
@@ -244,8 +283,8 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
                 ) : hasVotes ? (
                     <VotingDisplay users={users} />
                 ) : (
-                    <div className="text-center text-slate-500">
-                        <h2 className="text-2xl font-semibold">Select your card</h2>
+                    <div className="text-center text-slate-500 dark:text-slate-400">
+                        <h2 className="text-2xl font-semibold dark:text-slate-200">Select your card</h2>
                         <p>Votes will be revealed by the host.</p>
                     </div>
                 )}
@@ -264,8 +303,9 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
         </div>
       </main>
 
-      <footer className="w-full max-w-5xl mx-auto text-center mt-12 text-slate-500 text-sm">
+      <footer className="w-full max-w-5xl mx-auto text-center mt-12 text-slate-500 dark:text-slate-400 text-sm flex flex-col items-center gap-4">
         <p>Built with React, Cloudflare Workers, and Durable Objects.</p>
+        <BuyMeACoffee />
       </footer>
     </div>
   );
@@ -276,6 +316,31 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
 
 const App: React.FC = () => {
     const [roomCode, setRoomCode] = useState<string | null>(null);
+    const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'system');
+
+    useEffect(() => {
+        const root = window.document.documentElement;
+        const isDark =
+            theme === 'dark' ||
+            (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+        root.classList.toggle('dark', isDark);
+        localStorage.setItem('theme', theme);
+    }, [theme]);
+    
+    // Listen for system theme changes to update instantly if 'system' is selected
+    useEffect(() => {
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        const handleChange = () => {
+            if (theme === 'system') {
+                const root = window.document.documentElement;
+                root.classList.toggle('dark', mediaQuery.matches);
+            }
+        };
+
+        mediaQuery.addEventListener('change', handleChange);
+        return () => mediaQuery.removeEventListener('change', handleChange);
+    }, [theme]);
 
     // This effect handles potential legacy URLs on first load
     useEffect(() => {
@@ -306,10 +371,10 @@ const App: React.FC = () => {
     };
 
     if (roomCode) {
-        return <PokerRoom roomCode={roomCode} onLeave={handleLeaveRoom} />;
+        return <PokerRoom roomCode={roomCode} onLeave={handleLeaveRoom} theme={theme} setTheme={setTheme} />;
     }
     
-    return <LandingPage onNavigateToRoom={handleNavigateToRoom} />;
+    return <LandingPage onNavigateToRoom={handleNavigateToRoom} theme={theme} setTheme={setTheme} />;
 };
 
 export default App;

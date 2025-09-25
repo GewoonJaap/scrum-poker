@@ -49,7 +49,8 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ users }) => {
     return isNaN(num) ? 1001 : num;
   };
 
-  const sortedVoteGroups = Object.values(voteGroups).sort((a, b) => {
+  // Fix: Explicitly type the arguments of the sort function to prevent them from being inferred as `unknown`.
+  const sortedVoteGroups = Object.values(voteGroups).sort((a: VoteGroup, b: VoteGroup) => {
     return getSortableValue(a.card.value) - getSortableValue(b.card.value);
   });
   
@@ -84,20 +85,21 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ users }) => {
             UNANIMOUS!
           </h2>
         ) : (
-          <h2 className="text-3xl font-bold text-slate-700">Results</h2>
+          <h2 className="text-3xl font-bold text-slate-700 dark:text-slate-200">Results</h2>
         )}
       </div>
 
       {average && !isUnanimous && (
-        <div className="text-center mb-8 bg-white p-4 rounded-lg shadow-md max-w-xs mx-auto">
-            <h3 className="text-lg font-semibold text-slate-600">Average Estimate</h3>
-            <p className="text-5xl font-bold text-sky-600 tracking-tight">{average}</p>
+        <div className="text-center mb-8 bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md max-w-xs mx-auto">
+            <h3 className="text-lg font-semibold text-slate-600 dark:text-slate-300">Average Estimate</h3>
+            <p className="text-5xl font-bold text-sky-600 dark:text-sky-400 tracking-tight">{average}</p>
         </div>
       )}
 
       {votesCast > 0 ? (
         <div className="flex flex-wrap justify-center gap-x-6 gap-y-8">
-          {sortedVoteGroups.map((group, index) => (
+          {/* Fix: Explicitly type the `group` argument to prevent it from being inferred as `unknown`. */}
+          {sortedVoteGroups.map((group: VoteGroup, index) => (
             <div key={group.card.value} className="flex flex-col items-center w-[160px]">
               <div className="w-full [perspective:1000px]">
                 <div
@@ -121,7 +123,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ users }) => {
                 {group.users.map(u => (
                   <div key={u.id} className="flex items-center gap-2 px-2" title={u.name}>
                     <Avatar name={u.name} avatarId={u.avatar} size={20} />
-                    <p className="text-sm font-medium text-slate-600 truncate flex-1 text-left">
+                    <p className="text-sm font-medium text-slate-600 dark:text-slate-300 truncate flex-1 text-left">
                       {u.name}
                     </p>
                   </div>
@@ -131,7 +133,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ users }) => {
           ))}
         </div>
       ) : (
-        <p className="text-center text-slate-500">No votes were cast.</p>
+        <p className="text-center text-slate-500 dark:text-slate-400">No votes were cast.</p>
       )}
     </div>
   );
