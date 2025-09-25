@@ -109,6 +109,19 @@ export const CARD_COLORS = [
     'bg-pink-600', 'bg-rose-500',
 ];
 
+// --- Animated Gradient Options for Deck Builder ---
+export const CARD_GRADIENTS = [
+  { id: 'sunset', name: 'Sunset', classes: 'bg-gradient-to-r from-orange-500 to-rose-500 background-animate' },
+  { id: 'ocean', name: 'Ocean', classes: 'bg-gradient-to-r from-cyan-500 to-blue-500 background-animate' },
+  { id: 'emerald', name: 'Emerald', classes: 'bg-gradient-to-r from-emerald-500 to-green-600 background-animate' },
+  { id: 'aurora', name: 'Aurora', classes: 'bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 background-animate' },
+  { id: 'rainbow', name: 'Rainbow', classes: 'bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 background-animate' },
+  { id: 'nebula', name: 'Nebula', classes: 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 background-animate' },
+  { id: 'sunrise', name: 'Sunrise', classes: 'bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 background-animate' },
+  { id: 'passion', name: 'Passion', classes: 'bg-gradient-to-r from-rose-400 via-fuchsia-500 to-indigo-500 background-animate' },
+];
+
+
 // --- Card Deck Data ---
 
 export const DECKS: Record<string, Deck> = {

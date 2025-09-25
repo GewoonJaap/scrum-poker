@@ -11,7 +11,7 @@ interface PokerCardProps {
 
 const PokerCard: React.FC<PokerCardProps> = ({ card, isSelected, onClick, size = 'small' }) => {
   const cardRef = useRef<HTMLDivElement>(null);
-  const { value, color, icon: Icon, display } = card;
+  const { value, color, icon: Icon, emojiIcon, display } = card;
 
   const sizeClasses = {
     small: {
@@ -73,6 +73,8 @@ const PokerCard: React.FC<PokerCardProps> = ({ card, isSelected, onClick, size =
             className: 'w-full',
             size: size
           })
+        ) : emojiIcon ? (
+          <span className={currentSize.mainText}>{emojiIcon}</span>
         ) : Icon ? (
           <Icon className={currentSize.icon} strokeWidth={1.5} />
         ) : (

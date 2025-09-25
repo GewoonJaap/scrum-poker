@@ -7,6 +7,7 @@ export interface CardData {
   // Fix: Widened the type for `icon` to include `strokeWidth` to support props from lucide-react icons.
   icon?: React.FC<{ className?: string; strokeWidth?: number; }>;
   iconId?: string;
+  emojiIcon?: string;
   display?: React.ReactNode;
 }
 

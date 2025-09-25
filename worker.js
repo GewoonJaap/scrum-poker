@@ -5,6 +5,7 @@
  * @property {string} value
  * @property {string} color
  * @property {string} [iconId]
+ * @property {string} [emojiIcon]
  */
 
 /**

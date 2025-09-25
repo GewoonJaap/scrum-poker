@@ -78,7 +78,7 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ onLeave, theme, setTheme }) =
                                 <div className="flex flex-wrap gap-2 mb-4">
                                     {deck.cards.slice(0, 7).map((card, i) => (
                                         <div key={i} className={`w-6 h-6 rounded-sm flex items-center justify-center text-white font-bold text-xs ${card.color}`}>
-                                            {card.iconId ? <div className="w-3 h-3">{React.createElement(ICON_OPTIONS[card.iconId] || 'div')}</div> : card.value.charAt(0)}
+                                            {card.emojiIcon ? <span className="text-xs">{card.emojiIcon}</span> : card.iconId ? <div className="w-3 h-3">{React.createElement(ICON_OPTIONS[card.iconId] || 'div')}</div> : card.value.charAt(0)}
                                         </div>
                                     ))}
                                     {deck.cards.length > 7 && <div className="w-6 h-6 rounded-sm bg-slate-200 dark:bg-slate-700 text-slate-500 text-xs flex items-center justify-center">...</div>}
