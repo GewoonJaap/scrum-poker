@@ -34,6 +34,15 @@
       opacity: 0;
     }
   }
+  @keyframes gradient-animation {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  .background-animate {
+    background-size: 200% 200%;
+    animation: gradient-animation 4s ease infinite;
+  }
 </style>
 </head>
   <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200">

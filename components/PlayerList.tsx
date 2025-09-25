@@ -3,12 +3,14 @@ import type { CardData } from '../types';
 import { Circle } from 'lucide-react';
 import { CardCornerIcon } from '../constants';
 import Avatar from './Avatar';
+import PlayerName from './PlayerName';
 
 interface User {
   id: string;
   name: string;
   vote: CardData | null;
   avatar?: string;
+  colorId?: string;
 }
 
 interface PlayerListProps {
@@ -26,7 +28,7 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, revealed }) => {
             <div className="flex items-center gap-3 overflow-hidden">
                 <Avatar name={user.name} avatarId={user.avatar} size={32} />
                 <div className="flex-grow overflow-hidden">
-                    <p className="font-semibold text-slate-700 dark:text-slate-300 truncate" title={user.name}>{user.name}</p>
+                    <PlayerName name={user.name} colorId={user.colorId} />
                     {index === 0 && (
                          <span className="text-xs font-bold text-amber-600 dark:text-amber-500">HOST</span>
                     )}

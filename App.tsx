@@ -106,6 +106,7 @@ interface User {
   name: string;
   vote: CardData | null;
   avatar?: string;
+  colorId?: string;
 }
 
 interface PokerRoomProps {
@@ -165,10 +166,11 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
     };
   }, [roomCode]);
   
-  const handleSaveProfile = (name: string, avatarId: string) => {
+  const handleSaveProfile = (name: string, avatarId: string, colorId: string) => {
       localStorage.setItem('userName', name);
       localStorage.setItem('userAvatar', avatarId);
-      sendMessage({ type: 'setProfile', name, avatar: avatarId });
+      localStorage.setItem('userColor', colorId);
+      sendMessage({ type: 'setProfile', name, avatar: avatarId, colorId });
       setIsNameModalOpen(false);
   }
 

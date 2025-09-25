@@ -1,21 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { AVATAR_STYLES } from '../constants';
+import { AVATAR_STYLES, NAME_COLORS } from '../constants';
+import PlayerName from './PlayerName';
 
 interface SetNameModalProps {
     isOpen: boolean;
-    onSave: (name: string, avatarId: string) => void;
+    onSave: (name: string, avatarId: string, colorId: string) => void;
 }
 
 const SetNameModal: React.FC<SetNameModalProps> = ({ isOpen, onSave }) => {
     const [name, setName] = useState('');
     const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_STYLES[0].id);
+    const [selectedColorId, setSelectedColorId] = useState(NAME_COLORS[0].id);
 
     useEffect(() => {
         if (isOpen) {
             const savedName = localStorage.getItem('userName') || '';
             const savedAvatar = localStorage.getItem('userAvatar') || AVATAR_STYLES[0].id;
+            const savedColor = localStorage.getItem('userColor') || NAME_COLORS[0].id;
             setName(savedName);
             setSelectedAvatar(savedAvatar);
+            setSelectedColorId(savedColor);
         }
     }, [isOpen]);
 
@@ -24,8 +28,8 @@ const SetNameModal: React.FC<SetNameModalProps> = ({ isOpen, onSave }) => {
     }
 
     const handleSave = () => {
-        if (name.trim() && selectedAvatar) {
-            onSave(name.trim(), selectedAvatar);
+        if (name.trim() && selectedAvatar && selectedColorId) {
+            onSave(name.trim(), selectedAvatar, selectedColorId);
         }
     };
     
@@ -43,12 +47,11 @@ const SetNameModal: React.FC<SetNameModalProps> = ({ isOpen, onSave }) => {
                 />
 
                 <h3 className="text-lg font-bold text-slate-600 dark:text-slate-300 mt-6 mb-3">Choose an Avatar Style</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-3 -mt-2">Your unique avatar is generated from your name and the selected style.</p>
                 <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
                     {AVATAR_STYLES.map(avatar => {
                         const isSelected = selectedAvatar === avatar.id;
                         // The seed is now dynamic based on the name input for a live preview.
-                        const seed = encodeURIComponent(name.trim() || avatar.id);
+                        const seed = encodeURIComponent(name.trim() || 'default-user');
                         const previewUrl = `https://api.dicebear.com/8.x/${avatar.id}/svg?seed=${seed}&size=64`;
                         return (
                             <button
@@ -65,6 +68,28 @@ const SetNameModal: React.FC<SetNameModalProps> = ({ isOpen, onSave }) => {
                         )
                     })}
                 </div>
+
+                 <h3 className="text-lg font-bold text-slate-600 dark:text-slate-300 mt-6 mb-3">Name Color</h3>
+                 <div className="bg-slate-100 dark:bg-slate-700/[.5] p-4 rounded-lg text-center mb-4">
+                     <PlayerName name={name.trim() || 'Your Name'} colorId={selectedColorId} className="text-2xl" />
+                 </div>
+                 <div className="grid grid-cols-5 gap-3">
+                     {NAME_COLORS.map(color => {
+                         const isSelected = selectedColorId === color.id;
+                         return (
+                            <button
+                                key={color.id}
+                                onClick={() => setSelectedColorId(color.id)}
+                                className={`w-full aspect-square rounded-full transition-all duration-200 ${color.swatchClassName} ${isSelected ? 'ring-2 ring-offset-2 ring-sky-500' : 'hover:scale-110'}`}
+                                aria-label={`Select color ${color.name}`}
+                                title={color.name}
+                                style={{ background: color.swatchClassName.includes('bg-gradient') ? undefined : 'currentColor' }}
+                            >
+                                {color.id === 'default' && <span className="text-sm font-bold mix-blend-overlay">Aa</span>}
+                            </button>
+                         )
+                     })}
+                 </div>
 
                 <button
                     onClick={handleSave}

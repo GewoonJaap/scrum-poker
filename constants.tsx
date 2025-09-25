@@ -32,6 +32,20 @@ export const AVATAR_STYLES = [
   { id: 'notionists' },
 ];
 
+// --- Name Color Presets ---
+export const NAME_COLORS = [
+  { id: 'default', name: 'Default', textClassName: 'text-slate-700 dark:text-slate-300', swatchClassName: 'text-slate-700 dark:text-slate-300' },
+  { id: 'sky', name: 'Sky', textClassName: 'font-bold text-sky-600 dark:text-sky-400', swatchClassName: 'text-sky-600 dark:text-sky-400' },
+  { id: 'lime', name: 'Lime', textClassName: 'font-bold text-lime-600 dark:text-lime-400', swatchClassName: 'text-lime-600 dark:text-lime-400' },
+  { id: 'rose', name: 'Rose', textClassName: 'font-bold text-rose-600 dark:text-rose-400', swatchClassName: 'text-rose-600 dark:text-rose-400' },
+  { id: 'amber', name: 'Amber', textClassName: 'font-bold text-amber-600 dark:text-amber-400', swatchClassName: 'text-amber-600 dark:text-amber-400' },
+  { id: 'sunset', name: 'Sunset', textClassName: 'font-bold bg-gradient-to-r from-orange-500 to-rose-500 text-transparent bg-clip-text', swatchClassName: 'bg-gradient-to-r from-orange-500 to-rose-500' },
+  { id: 'ocean', name: 'Ocean', textClassName: 'font-bold bg-gradient-to-r from-cyan-500 to-blue-500 text-transparent bg-clip-text', swatchClassName: 'bg-gradient-to-r from-cyan-500 to-blue-500' },
+  { id: 'emerald', name: 'Emerald', textClassName: 'font-bold bg-gradient-to-r from-emerald-500 to-green-600 text-transparent bg-clip-text', swatchClassName: 'bg-gradient-to-r from-emerald-500 to-green-600' },
+  { id: 'aurora', name: 'Aurora', textClassName: 'font-bold bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 background-animate text-transparent bg-clip-text', swatchClassName: 'bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 background-animate' },
+  { id: 'rainbow', name: 'Rainbow', textClassName: 'font-bold bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 background-animate text-transparent bg-clip-text', swatchClassName: 'bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 background-animate' },
+];
+
 
 // --- Card Deck Data ---
 

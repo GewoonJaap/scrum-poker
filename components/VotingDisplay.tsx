@@ -2,12 +2,14 @@ import React from 'react';
 import type { CardData } from '../types';
 import CardBack from './CardBack';
 import Avatar from './Avatar';
+import PlayerName from './PlayerName';
 
 interface User {
   id: string;
   name: string;
   vote: CardData | null;
   avatar?: string;
+  colorId?: string;
 }
 
 interface VotingDisplayProps {
@@ -28,7 +30,7 @@ const VotingDisplay: React.FC<VotingDisplayProps> = ({ users }) => {
                     <CardBack size="small" />
                     <div className="mt-2 flex items-center gap-2 w-full justify-center px-1" title={user.name}>
                         <Avatar name={user.name} avatarId={user.avatar} size={24} />
-                        <p className="font-semibold text-slate-600 dark:text-slate-300 truncate">{user.name}</p>
+                        <PlayerName name={user.name} colorId={user.colorId} />
                     </div>
                 </div>
             ))}
