@@ -26,6 +26,7 @@ export class PokerRoom {
   private users: Record<string, User>;
   private userList: string[]; // To maintain user join order, userList[0] is the host.
   private revealed: boolean;
+  private deckId: string;
   private state: DurableObjectState;
 
   constructor(state: DurableObjectState, env: Env) {
@@ -34,6 +35,7 @@ export class PokerRoom {
     this.users = {};
     this.userList = [];
     this.revealed = false;
+    this.deckId = 'fibonacci'; // Default deck
   }
 
   // The system will call fetch() whenever a client sends a request to this Object.
@@ -123,6 +125,19 @@ export class PokerRoom {
                     }
                     this.broadcastState();
                     break;
+                case 'setDeck':
+                    if (isHost) {
+                        this.deckId = data.deckId;
+                        // Changing the deck implies a new round.
+                        this.revealed = false;
+                        for (const u of Object.values(this.users)) {
+                            u.vote = null;
+                        }
+                        this.broadcastState();
+                    } else {
+                         console.warn(`[${this.state.id.toString()}] Non-host user ${userId} attempted to set deck.`);
+                    }
+                    break;
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -154,6 +169,7 @@ export class PokerRoom {
         // Use the ordered list to build the users array, ensuring the host is always first
         users: this.userList.map(id => this.users[id]).filter(Boolean),
         revealed: this.revealed,
+        deckId: this.deckId,
       };
       message = JSON.stringify(state);
     }

@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { CARD_DATA } from './constants';
+import { DECKS } from './constants';
 import PokerCard from './components/PokerCard';
 import type { CardData } from './types';
 import { socket, sendMessage } from './socket';
@@ -10,6 +9,7 @@ import SetNameModal from './components/SetNameModal';
 import { ArrowLeft } from 'lucide-react';
 import VotingDisplay from './components/VotingDisplay';
 import AnimatingCard from './components/AnimatingCard';
+import DeckSelector from './components/DeckSelector';
 
 // --- Landing Page Component ---
 
@@ -102,6 +102,7 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
   const [userId, setUserId] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [revealed, setRevealed] = useState(false);
+  const [deckId, setDeckId] = useState('fibonacci');
   const [isNameModalOpen, setIsNameModalOpen] = useState(false);
   const [animatingCard, setAnimatingCard] = useState<{ card: CardData; rect: DOMRect } | null>(null);
 
@@ -118,41 +119,30 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
       setIsNameModalOpen(true);
     }
 
-    socket.connect(currentUserId, roomCode);
-
     const handleSocketMessage = (event: MessageEvent) => {
       const data = JSON.parse(event.data);
       if (data.type === 'state') {
+        const currentDeckCards = DECKS[data.deckId]?.cards || DECKS.fibonacci.cards;
         // Rehydrate user votes with full card data, including the icon component,
         // which is lost during JSON serialization over the WebSocket.
         const rehydratedUsers = data.users.map((user: User) => {
             if (user.vote) {
-                const originalCard = CARD_DATA.find(c => c.value === user.vote?.value);
+                const originalCard = currentDeckCards.find(c => c.value === user.vote?.value);
                 return { ...user, vote: originalCard || null };
             }
             return user;
         });
         setUsers(rehydratedUsers);
         setRevealed(data.revealed);
+        setDeckId(data.deckId);
       }
     };
 
-    const ws = socket.getWebSocket();
-    if (ws) {
-      const onOpenHandler = () => {
-         ws.addEventListener('message', handleSocketMessage);
-      };
-      if (ws.readyState === WebSocket.OPEN) {
-        onOpenHandler();
-      } else {
-        ws.addEventListener('open', onOpenHandler);
-      }
-    }
+    socket.connect(currentUserId, roomCode);
+    socket.subscribe(handleSocketMessage);
 
     return () => {
-      if (ws) {
-        ws.removeEventListener('message', handleSocketMessage);
-      }
+      socket.unsubscribe(handleSocketMessage);
       socket.disconnect();
     };
   }, [roomCode]);
@@ -188,6 +178,7 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
   const currentUser = users.find(u => u.id === userId);
   const isHost = users.length > 0 && users[0].id === userId;
   const hasVotes = users.some(user => user.vote !== null);
+  const cardsToDisplay = DECKS[deckId]?.cards || DECKS.fibonacci.cards;
 
   return (
     <div className="min-h-screen bg-[#e0f7fa] flex flex-col items-center p-4 sm:p-8 font-sans">
@@ -216,6 +207,14 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
             <aside className="md:w-1/4">
                 <PlayerList users={users} revealed={revealed} />
                 <div className="mt-4 flex flex-col space-y-2">
+                    {isHost && (
+                        <DeckSelector
+                          decks={DECKS}
+                          currentDeckId={deckId}
+                          onChange={(newDeckId) => sendMessage({ type: 'setDeck', deckId: newDeckId })}
+                          isDisabled={hasVotes && !revealed}
+                        />
+                    )}
                    <button
                         onClick={() => setIsNameModalOpen(true)}
                         className="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg shadow-sm hover:bg-slate-300 transition-colors w-full"
@@ -254,7 +253,7 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 sm:gap-6 w-full mt-12">
-          {CARD_DATA.map((card) => (
+          {cardsToDisplay.map((card) => (
             <PokerCard
               key={card.value}
               card={card}

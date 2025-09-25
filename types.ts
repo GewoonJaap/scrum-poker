@@ -8,3 +8,9 @@ export interface CardData {
   icon?: React.FC<{ className?: string; strokeWidth?: number; }>;
   display?: React.ReactNode;
 }
+
+export interface Deck {
+  id: string;
+  name: string;
+  cards: CardData[];
+}
