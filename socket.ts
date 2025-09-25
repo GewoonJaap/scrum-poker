@@ -1,9 +1,10 @@
+
 let ws: WebSocket | null = null;
 let userId: string | null = null;
 
-const connectWebSocket = (currentUserId: string) => {
+const connectWebSocket = (currentUserId: string, roomCode: string) => {
     userId = currentUserId;
-    const { pathname } = window.location;
+    const pathname = `/room/${roomCode}`;
     const workerHost = 'scrum-poker.gewoonjaap.workers.dev';
     const wsUrl = `wss://${workerHost}${pathname}?userId=${userId}`;
 
@@ -19,7 +20,7 @@ const connectWebSocket = (currentUserId: string) => {
 
     ws.onclose = () => {
         console.log('WebSocket disconnected. Reconnecting...');
-        setTimeout(() => connectWebSocket(currentUserId), 1000);
+        setTimeout(() => connectWebSocket(currentUserId, roomCode), 1000);
     };
 
     ws.onerror = (error) => {
@@ -29,9 +30,9 @@ const connectWebSocket = (currentUserId: string) => {
 };
 
 export const socket = {
-    connect: (currentUserId: string) => {
+    connect: (currentUserId: string, roomCode: string) => {
         if (!ws || ws.readyState === WebSocket.CLOSED) {
-            connectWebSocket(currentUserId);
+            connectWebSocket(currentUserId, roomCode);
         }
     },
     disconnect: () => {

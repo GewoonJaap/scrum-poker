@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { CARD_DATA } from './constants';
 import PokerCard from './components/PokerCard';
@@ -7,14 +6,16 @@ import { socket, sendMessage } from './socket';
 import PlayerList from './components/PlayerList';
 import ResultsDisplay from './components/ResultsDisplay';
 import SetNameModal from './components/SetNameModal';
+import { ArrowLeft } from 'lucide-react';
+import VotingDisplay from './components/VotingDisplay';
 
 // --- Landing Page Component ---
 
 interface LandingPageProps {
-    onNavigate: (path: string) => void;
+    onNavigateToRoom: (code: string) => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToRoom }) => {
     const [roomCode, setRoomCode] = useState('');
 
     const generateRoomCode = () => {
@@ -24,13 +25,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
 
     const handleCreateRoom = () => {
         const newRoomCode = generateRoomCode();
-        onNavigate(`/room/${newRoomCode}`);
+        onNavigateToRoom(newRoomCode);
     };
 
     const handleJoinRoom = (e: React.FormEvent) => {
         e.preventDefault();
         if (roomCode.trim()) {
-            onNavigate(`/room/${roomCode.trim().toUpperCase()}`);
+            onNavigateToRoom(roomCode.trim().toUpperCase());
         }
     };
 
@@ -89,19 +90,19 @@ interface User {
   vote: CardData | null;
 }
 
-const PokerRoom: React.FC = () => {
+interface PokerRoomProps {
+    roomCode: string;
+    onLeave: () => void;
+}
+
+const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
   const [userId, setUserId] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [revealed, setRevealed] = useState(false);
   const [selectedCard, setSelectedCard] = useState<CardData | null>(null);
   const [isNameModalOpen, setIsNameModalOpen] = useState(false);
-  const [roomCode, setRoomCode] = useState('');
 
   useEffect(() => {
-    const pathParts = window.location.pathname.split('/');
-    const code = pathParts.pop() || '';
-    setRoomCode(code);
-    
     let currentUserId = localStorage.getItem('userId');
     if (!currentUserId) {
       currentUserId = crypto.randomUUID();
@@ -114,7 +115,7 @@ const PokerRoom: React.FC = () => {
       setIsNameModalOpen(true);
     }
 
-    socket.connect(currentUserId);
+    socket.connect(currentUserId, roomCode);
 
     const handleSocketMessage = (event: MessageEvent) => {
       const data = JSON.parse(event.data);
@@ -151,7 +152,7 @@ const PokerRoom: React.FC = () => {
       }
       socket.disconnect();
     };
-  }, []);
+  }, [roomCode]);
   
   const handleSetName = (name: string) => {
       localStorage.setItem('userName', name);
@@ -180,7 +181,14 @@ const PokerRoom: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#e0f7fa] flex flex-col items-center p-4 sm:p-8 font-sans">
       <SetNameModal isOpen={isNameModalOpen} onSave={handleSetName} />
-      <header className="w-full max-w-6xl mx-auto text-center mb-8">
+      <header className="w-full max-w-6xl mx-auto text-center mb-8 relative">
+        <button 
+          onClick={onLeave} 
+          className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-slate-200 transition-colors"
+          aria-label="Leave Room"
+        >
+            <ArrowLeft className="h-6 w-6 text-slate-600" />
+        </button>
         <h1 className="text-4xl sm:text-5xl font-bold text-slate-700">Planning Poker</h1>
         <p className="text-slate-500">Room: <span className="font-mono bg-slate-200 px-2 py-1 rounded">{roomCode}</span></p>
       </header>
@@ -210,6 +218,8 @@ const PokerRoom: React.FC = () => {
             <section className="flex-grow md:w-3/4 min-h-[420px] w-full flex items-center justify-center">
                 {revealed ? (
                     <ResultsDisplay users={users} />
+                ) : hasVotes ? (
+                    <VotingDisplay users={users} />
                 ) : (
                     <div className="text-center text-slate-500">
                         <h2 className="text-2xl font-semibold">Select your card</h2>
@@ -242,43 +252,41 @@ const PokerRoom: React.FC = () => {
 // --- Main App Component (Router) ---
 
 const App: React.FC = () => {
-    const [path, setPath] = useState(window.location.pathname);
+    const [roomCode, setRoomCode] = useState<string | null>(null);
 
+    // This effect handles potential legacy URLs on first load
     useEffect(() => {
-        // This effect handles browser back/forward navigation.
-        const onLocationChange = () => {
-            setPath(window.location.pathname);
-        };
-        window.addEventListener('popstate', onLocationChange);
-        return () => window.removeEventListener('popstate', onLocationChange);
+        const path = window.location.pathname;
+        const setRoomFromCode = (code: string) => {
+            setRoomCode(code.toUpperCase());
+            window.history.replaceState({}, '', '/');
+        }
+
+        const roomMatch = path.match(/^\/room\/([a-zA-Z0-9]+)/);
+        if (roomMatch) {
+            setRoomFromCode(roomMatch[1]);
+            return;
+        }
+
+        const legacyMatch = path.match(/^\/([a-zA-Z0-9-]{6,})$/);
+         if (legacyMatch && legacyMatch[1].length >=6 && !path.startsWith('/room/')) {
+            setRoomFromCode(legacyMatch[1]);
+        }
     }, []);
 
-    // This effect handles the initial legacy URL redirect.
-    useEffect(() => {
-        const legacyMatch = path.match(/^\/([a-zA-Z0-9-]{8,})$/);
-        if (legacyMatch && !path.startsWith('/room/')) {
-            const roomCode = legacyMatch[1];
-            const newPath = `/room/${roomCode}`;
-            window.history.replaceState({}, '', newPath);
-            setPath(newPath);
-        }
-    }, [path]);
-
-    const navigate = (newPath: string) => {
-        window.history.pushState({}, '', newPath);
-        setPath(newPath);
+    const handleNavigateToRoom = (code: string) => {
+        setRoomCode(code.toUpperCase());
     };
 
-    // Route for the room, e.g. /room/ABCDEF
-    if (path.startsWith('/room/')) {
-        const roomCode = path.split('/').pop();
-        if (roomCode && roomCode.length > 0) {
-            return <PokerRoom />;
-        }
+    const handleLeaveRoom = () => {
+        setRoomCode(null);
+    };
+
+    if (roomCode) {
+        return <PokerRoom roomCode={roomCode} onLeave={handleLeaveRoom} />;
     }
     
-    // Default route: show the landing page
-    return <LandingPage onNavigate={navigate} />;
+    return <LandingPage onNavigateToRoom={handleNavigateToRoom} />;
 };
 
 export default App;

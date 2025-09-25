@@ -1,6 +1,7 @@
 import React from 'react';
 import type { CardData } from '../types';
-import { CheckCircle, Circle } from 'lucide-react';
+import { Circle } from 'lucide-react';
+import { CardCornerIcon } from '../constants';
 
 interface User {
   id: string;
@@ -21,17 +22,25 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, revealed }) => {
         {users.map((user) => (
           <li key={user.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-md">
             <span className="font-semibold text-slate-600">{user.name}</span>
-            <div className="flex items-center gap-2">
-                {revealed && user.vote && (
-                    <span className={`font-bold text-lg px-2 py-1 rounded-md text-white ${user.vote.color}`}>
-                        {user.vote.value}
-                    </span>
-                )}
-                {user.vote ? (
-                    <CheckCircle className="text-green-500" />
-                ) : (
-                    <Circle className="text-slate-400" />
-                )}
+            <div className="flex items-center gap-2" style={{minWidth: '60px', justifyContent: 'flex-end'}}>
+                {(() => {
+                    if (revealed && user.vote) {
+                        return (
+                            <span className={`font-bold text-lg px-2 py-1 rounded-md text-white ${user.vote.color}`}>
+                                {user.vote.value}
+                            </span>
+                        );
+                    }
+                    if (user.vote) { // Not revealed, but has voted
+                        return (
+                            <div className="w-8 h-10 bg-slate-700 rounded-sm border-2 border-slate-300 flex items-center justify-center" title="Voted">
+                                <CardCornerIcon className="w-4 h-4 text-slate-400" />
+                            </div>
+                        );
+                    }
+                    // Not revealed, has not voted OR revealed, has not voted
+                    return <Circle className="text-slate-400" title="Waiting to vote" />;
+                })()}
             </div>
           </li>
         ))}
