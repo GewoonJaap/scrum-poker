@@ -9,6 +9,7 @@ interface User {
   id: string;
   name: string;
   vote: CardData | null;
+  avatar?: string;
 }
 
 interface ResultsDisplayProps {
@@ -119,7 +120,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ users }) => {
               <div className="mt-3 w-full space-y-1">
                 {group.users.map(u => (
                   <div key={u.id} className="flex items-center gap-2 px-2" title={u.name}>
-                    <Avatar name={u.name} size={20} />
+                    <Avatar name={u.name} avatarId={u.avatar} size={20} />
                     <p className="text-sm font-medium text-slate-600 truncate flex-1 text-left">
                       {u.name}
                     </p>

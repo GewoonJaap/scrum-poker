@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { CARD_DATA } from './constants';
 import PokerCard from './components/PokerCard';
@@ -89,6 +90,7 @@ interface User {
   id: string;
   name: string;
   vote: CardData | null;
+  avatar?: string;
 }
 
 interface PokerRoomProps {
@@ -155,9 +157,10 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
     };
   }, [roomCode]);
   
-  const handleSetName = (name: string) => {
+  const handleSaveProfile = (name: string, avatarId: string) => {
       localStorage.setItem('userName', name);
-      sendMessage({ type: 'setName', name });
+      localStorage.setItem('userAvatar', avatarId);
+      sendMessage({ type: 'setProfile', name, avatar: avatarId });
       setIsNameModalOpen(false);
   }
 
@@ -188,7 +191,7 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
 
   return (
     <div className="min-h-screen bg-[#e0f7fa] flex flex-col items-center p-4 sm:p-8 font-sans">
-      <SetNameModal isOpen={isNameModalOpen} onSave={handleSetName} />
+      <SetNameModal isOpen={isNameModalOpen} onSave={handleSaveProfile} />
        {animatingCard && (
           <AnimatingCard
             card={animatingCard.card}
@@ -213,6 +216,12 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
             <aside className="md:w-1/4">
                 <PlayerList users={users} revealed={revealed} />
                 <div className="mt-4 flex flex-col space-y-2">
+                   <button
+                        onClick={() => setIsNameModalOpen(true)}
+                        className="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg shadow-sm hover:bg-slate-300 transition-colors w-full"
+                    >
+                        Edit Profile
+                    </button>
                    {isHost && (
                        revealed ? (
                            <button onClick={handleReset} className="px-4 py-2 bg-rose-500 text-white font-bold rounded-lg shadow-md hover:bg-rose-600 transition-colors w-full">

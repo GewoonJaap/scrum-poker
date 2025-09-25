@@ -8,6 +8,7 @@ interface User {
   id: string;
   name: string;
   vote: CardData | null;
+  avatar?: string;
 }
 
 interface Session {
@@ -68,7 +69,7 @@ export class PokerRoom {
     
     // Initialize user if not present and add them to the ordered list
     if (!this.users[userId]) {
-        this.users[userId] = { id: userId, name: `User ${userId.substring(0, 4)}`, vote: null };
+        this.users[userId] = { id: userId, name: `User ${userId.substring(0, 4)}`, vote: null, avatar: undefined };
         this.userList.push(userId);
         console.log(`[${this.state.id.toString()}] Initialized new user: ${JSON.stringify(this.users[userId])}`);
     }
@@ -113,9 +114,12 @@ export class PokerRoom {
                         console.warn(`[${this.state.id.toString()}] Non-host user ${userId} attempted to reset.`);
                     }
                     break;
-                case 'setName':
+                case 'setProfile':
                     if (data.name) {
                         user.name = data.name;
+                    }
+                    if (data.avatar) {
+                        user.avatar = data.avatar;
                     }
                     this.broadcastState();
                     break;

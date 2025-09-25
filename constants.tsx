@@ -17,6 +17,20 @@ import {
 
 const CardCornerIcon = Award;
 
+// --- Avatar Data ---
+// Using styles from DiceBear v8: https://www.dicebear.com/styles
+export const AVATAR_STYLES = [
+  { id: 'micah' },
+  { id: 'adventurer' },
+  { id: 'bottts' },
+  { id: 'lorelei' },
+  { id: 'fun-emoji' },
+  { id: 'identicon' },
+  { id: 'thumbs' },
+  { id: 'notionists' },
+];
+
+
 // --- Card Data ---
 
 export const CARD_DATA: CardData[] = [

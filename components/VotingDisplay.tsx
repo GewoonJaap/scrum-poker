@@ -7,6 +7,7 @@ interface User {
   id: string;
   name: string;
   vote: CardData | null;
+  avatar?: string;
 }
 
 interface VotingDisplayProps {
@@ -26,7 +27,7 @@ const VotingDisplay: React.FC<VotingDisplayProps> = ({ users }) => {
                 <div key={user.id} className="flex flex-col items-center">
                     <CardBack size="small" />
                     <div className="mt-2 flex items-center gap-2 w-full justify-center px-1" title={user.name}>
-                        <Avatar name={user.name} size={24} />
+                        <Avatar name={user.name} avatarId={user.avatar} size={24} />
                         <p className="font-semibold text-slate-600 truncate">{user.name}</p>
                     </div>
                 </div>

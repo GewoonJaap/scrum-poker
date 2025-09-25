@@ -8,6 +8,7 @@ interface User {
   id: string;
   name: string;
   vote: CardData | null;
+  avatar?: string;
 }
 
 interface PlayerListProps {
@@ -23,7 +24,7 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, revealed }) => {
         {users.map((user, index) => (
           <li key={user.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-md">
             <div className="flex items-center gap-3 overflow-hidden">
-                <Avatar name={user.name} size={32} />
+                <Avatar name={user.name} avatarId={user.avatar} size={32} />
                 <div className="flex-grow overflow-hidden">
                     <p className="font-semibold text-slate-700 truncate" title={user.name}>{user.name}</p>
                     {index === 0 && (

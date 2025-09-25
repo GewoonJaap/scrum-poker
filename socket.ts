@@ -13,8 +13,9 @@ const connectWebSocket = (currentUserId: string, roomCode: string) => {
     ws.onopen = () => {
         console.log('WebSocket connected');
         const userName = localStorage.getItem('userName');
+        const userAvatar = localStorage.getItem('userAvatar');
         if (userName) {
-            sendMessage({ type: 'setName', name: userName });
+            sendMessage({ type: 'setProfile', name: userName, avatar: userAvatar });
         }
     };
 
