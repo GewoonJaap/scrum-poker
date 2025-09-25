@@ -6,6 +6,7 @@ export interface CardData {
   textColor?: string;
   // Fix: Widened the type for `icon` to include `strokeWidth` to support props from lucide-react icons.
   icon?: React.FC<{ className?: string; strokeWidth?: number; }>;
+  iconId?: string;
   display?: React.ReactNode;
 }
 

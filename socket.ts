@@ -2,7 +2,7 @@ let ws: WebSocket | null = null;
 let reconnectTimer: number | null = null;
 const listeners: ((event: MessageEvent) => void)[] = [];
 
-const connectWebSocket = (currentUserId: string, roomCode: string) => {
+const connectWebSocket = (currentUserId: string, roomCode: string, isSpectator: boolean) => {
     if (reconnectTimer) {
         clearTimeout(reconnectTimer);
         reconnectTimer = null;
@@ -10,7 +10,7 @@ const connectWebSocket = (currentUserId: string, roomCode: string) => {
     
     const pathname = `/room/${roomCode}`;
     const workerHost = 'scrum-poker.gewoonjaap.workers.dev';
-    const wsUrl = `wss://${workerHost}${pathname}?userId=${currentUserId}`;
+    const wsUrl = `wss://${workerHost}${pathname}?userId=${currentUserId}&isSpectator=${isSpectator}`;
 
     ws = new WebSocket(wsUrl);
 
@@ -18,8 +18,9 @@ const connectWebSocket = (currentUserId: string, roomCode: string) => {
         console.log('WebSocket connected');
         const userName = localStorage.getItem('userName');
         const userAvatar = localStorage.getItem('userAvatar');
+        const userColor = localStorage.getItem('userColor');
         if (userName) {
-            sendMessage({ type: 'setProfile', name: userName, avatar: userAvatar });
+            sendMessage({ type: 'setProfile', name: userName, avatar: userAvatar, colorId: userColor });
         }
     };
 
@@ -31,7 +32,7 @@ const connectWebSocket = (currentUserId: string, roomCode: string) => {
     ws.onclose = () => {
         console.log('WebSocket disconnected. Reconnecting...');
         ws = null; // Clear the old socket
-        reconnectTimer = window.setTimeout(() => connectWebSocket(currentUserId, roomCode), 1500); // Increased delay
+        reconnectTimer = window.setTimeout(() => connectWebSocket(currentUserId, roomCode, isSpectator), 1500); // Increased delay
     };
 
     ws.onerror = (error) => {
@@ -41,9 +42,9 @@ const connectWebSocket = (currentUserId: string, roomCode: string) => {
 };
 
 export const socket = {
-    connect: (currentUserId: string, roomCode: string) => {
+    connect: (currentUserId: string, roomCode: string, isSpectator: boolean) => {
         if (!ws && !reconnectTimer) { // Only connect if not already connected or attempting to reconnect
-            connectWebSocket(currentUserId, roomCode);
+            connectWebSocket(currentUserId, roomCode, isSpectator);
         }
     },
     disconnect: () => {

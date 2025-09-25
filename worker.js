@@ -1,21 +1,34 @@
-// TypeScript interfaces for our data structures
-interface CardData {
-  value: string;
-  color: string;
-}
+// JSDoc type definitions for our data structures
 
-interface User {
-  id: string;
-  name: string;
-  vote: CardData | null;
-  avatar?: string;
-  colorId?: string;
-}
+/**
+ * @typedef {object} CardData
+ * @property {string} value
+ * @property {string} color
+ * @property {string} [iconId]
+ */
 
-interface Session {
-  socket: WebSocket;
-  userId: string;
-}
+/**
+ * @typedef {object} Deck
+ * @property {string} id
+ * @property {string} name
+ * @property {CardData[]} cards
+ */
+
+/**
+ * @typedef {object} User
+ * @property {string} id
+ * @property {string} name
+ * @property {CardData | null} vote
+ * @property {string} [avatar]
+ * @property {string} [colorId]
+ * @property {boolean} [isSpectator]
+ */
+
+/**
+ * @typedef {object} Session
+ * @property {WebSocket} socket
+ * @property {string} userId
+ */
 
 interface Env {
   POKER_ROOM: DurableObjectNamespace;
@@ -23,12 +36,20 @@ interface Env {
 
 // A Durable Object's behavior is defined in an exported Javascript class
 export class PokerRoom {
-  private sessions: Session[];
-  private users: Record<string, User>;
-  private userList: string[]; // To maintain user join order, userList[0] is the host.
-  private revealed: boolean;
-  private deckId: string;
-  private state: DurableObjectState;
+  /** @type {Session[]} */
+  sessions;
+  /** @type {Record<string, User>} */
+  users;
+  /** @type {string[]} */
+  userList;
+  /** @type {boolean} */
+  revealed;
+  /** @type {string} */
+  deckId;
+  /** @type {Deck | null} */
+  activeCustomDeck;
+  /** @type {DurableObjectState} */
+  state;
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
@@ -37,12 +58,14 @@ export class PokerRoom {
     this.userList = [];
     this.revealed = false;
     this.deckId = 'fibonacci'; // Default deck
+    this.activeCustomDeck = null; // Holds the host's selected custom deck
   }
 
   // The system will call fetch() whenever a client sends a request to this Object.
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const userId = url.searchParams.get("userId");
+    const isSpectator = url.searchParams.get("isSpectator") === 'true';
 
     if (!userId) {
       console.error("Fetch request missing userId");
@@ -57,7 +80,7 @@ export class PokerRoom {
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
-    await this.handleSession(server, userId);
+    await this.handleSession(server, userId, isSpectator);
 
     return new Response(null, {
       status: 101,
@@ -65,14 +88,14 @@ export class PokerRoom {
     });
   }
 
-  async handleSession(socket: WebSocket, userId: string): Promise<void> {
+  async handleSession(socket: WebSocket, userId: string, isSpectator: boolean): Promise<void> {
     socket.accept();
     this.sessions.push({ socket, userId });
-    console.log(`[${this.state.id.toString()}] Accepted WebSocket connection for user: ${userId}`);
+    console.log(`[${this.state.id.toString()}] Accepted WebSocket connection for user: ${userId}${isSpectator ? ' as SPECTATOR' : ''}`);
     
     // Initialize user if not present and add them to the ordered list
     if (!this.users[userId]) {
-        this.users[userId] = { id: userId, name: `User ${userId.substring(0, 4)}`, vote: null, avatar: undefined, colorId: 'default' };
+        this.users[userId] = { id: userId, name: `User ${userId.substring(0, 4)}`, vote: null, avatar: undefined, colorId: 'default', isSpectator };
         this.userList.push(userId);
         console.log(`[${this.state.id.toString()}] Initialized new user: ${JSON.stringify(this.users[userId])}`);
     }
@@ -91,10 +114,15 @@ export class PokerRoom {
                 return;
             }
             
-            const isHost = this.userList.length > 0 && this.userList[0] === userId;
+            const hostId = this.userList.find(id => this.users[id] && !this.users[id].isSpectator);
+            const isHost = hostId === userId;
 
             switch (data.type) {
                 case 'vote':
+                    if (user.isSpectator) {
+                        console.warn(`[${this.state.id.toString()}] Spectator user ${userId} attempted to vote. Ignoring.`);
+                        return;
+                    }
                     user.vote = data.card;
                     this.broadcastState();
                     break;
@@ -121,17 +149,18 @@ export class PokerRoom {
                     if (data.name) {
                         user.name = data.name;
                     }
-                    if (data.avatar) {
-                        user.avatar = data.avatar;
+                    if ('avatar' in data) {
+                        user.avatar = data.avatar || undefined;
                     }
-                    if (data.colorId) {
-                        user.colorId = data.colorId;
+                    if ('colorId' in data) {
+                        user.colorId = data.colorId || 'default';
                     }
                     this.broadcastState();
                     break;
                 case 'setDeck':
                     if (isHost) {
                         this.deckId = data.deckId;
+                        this.activeCustomDeck = null; // A standard deck was chosen, so clear the custom one.
                         // Changing the deck implies a new round.
                         this.revealed = false;
                         for (const u of Object.values(this.users)) {
@@ -140,6 +169,25 @@ export class PokerRoom {
                         this.broadcastState();
                     } else {
                          console.warn(`[${this.state.id.toString()}] Non-host user ${userId} attempted to set deck.`);
+                    }
+                    break;
+                case 'setCustomDeck':
+                    if (isHost) {
+                        const deck = data.deck;
+                        if (deck && deck.id && deck.name && Array.isArray(deck.cards)) {
+                            this.activeCustomDeck = deck;
+                            this.deckId = deck.id;
+                            // Changing the deck implies a new round.
+                            this.revealed = false;
+                            for (const u of Object.values(this.users)) {
+                                u.vote = null;
+                            }
+                            this.broadcastState();
+                        } else {
+                             console.warn(`[${this.state.id.toString()}] Invalid custom deck format from host ${userId}.`);
+                        }
+                    } else {
+                        console.warn(`[${this.state.id.toString()}] Non-host user ${userId} attempted to set a custom deck.`);
                     }
                     break;
             }
@@ -170,10 +218,11 @@ export class PokerRoom {
     if (!message) {
       const state = {
         type: 'state',
-        // Use the ordered list to build the users array, ensuring the host is always first
+        // Use the ordered list to build the users array
         users: this.userList.map(id => this.users[id]).filter(Boolean),
         revealed: this.revealed,
         deckId: this.deckId,
+        activeCustomDeck: this.activeCustomDeck, // Broadcast the active custom deck
       };
       message = JSON.stringify(state);
     }

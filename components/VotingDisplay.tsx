@@ -10,6 +10,7 @@ interface User {
   vote: CardData | null;
   avatar?: string;
   colorId?: string;
+  isSpectator?: boolean;
 }
 
 interface VotingDisplayProps {

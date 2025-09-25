@@ -13,6 +13,25 @@ import {
     Sparkles,
     Shirt,
     Zap,
+    Anchor,
+    Bike,
+    Bomb,
+    Car,
+    Diamond,
+    Feather,
+    Flag,
+    Flame,
+    Gift,
+    Heart,
+    Leaf,
+    Moon,
+    Rocket,
+    Star,
+    Sun,
+    Trophy,
+    Turtle,
+    Umbrella,
+    Wind,
 } from 'lucide-react';
 
 // --- Icon Components ---
@@ -46,6 +65,49 @@ export const NAME_COLORS = [
   { id: 'rainbow', name: 'Rainbow', textClassName: 'font-bold bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 background-animate text-transparent bg-clip-text', swatchClassName: 'bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 background-animate' },
 ];
 
+// --- Icon Options for Deck Builder ---
+export const ICON_OPTIONS: Record<string, React.FC<any>> = {
+    'MessageSquare': MessageSquare,
+    'Sprout': Sprout,
+    'Bird': Bird,
+    'Target': Target,
+    'Clover': Clover,
+    'Infinity': InfinityIcon,
+    'Coffee': Coffee,
+    'HelpCircle': HelpCircle,
+    'Award': Award,
+    'Sparkles': Sparkles,
+    'Shirt': Shirt,
+    'Zap': Zap,
+    'Anchor': Anchor,
+    'Bike': Bike,
+    'Bomb': Bomb,
+    'Car': Car,
+    'Diamond': Diamond,
+    'Feather': Feather,
+    'Flag': Flag,
+    'Flame': Flame,
+    'Gift': Gift,
+    'Heart': Heart,
+    'Leaf': Leaf,
+    'Moon': Moon,
+    'Rocket': Rocket,
+    'Star': Star,
+    'Sun': Sun,
+    'Trophy': Trophy,
+    'Turtle': Turtle,
+    'Umbrella': Umbrella,
+    'Wind': Wind,
+};
+
+// --- Color Options for Deck Builder ---
+export const CARD_COLORS = [
+    'bg-slate-700', 'bg-red-500', 'bg-orange-500', 'bg-amber-800',
+    'bg-yellow-500', 'bg-lime-500', 'bg-green-500', 'bg-emerald-500',
+    'bg-teal-500', 'bg-cyan-500', 'bg-sky-600', 'bg-blue-600',
+    'bg-indigo-600', 'bg-violet-600', 'bg-purple-600', 'bg-fuchsia-600',
+    'bg-pink-600', 'bg-rose-500',
+];
 
 // --- Card Deck Data ---
 

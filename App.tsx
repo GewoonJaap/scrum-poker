@@ -1,30 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { DECKS } from './constants';
-import PokerCard from './components/PokerCard';
-import type { CardData } from './types';
+import { DECKS, ICON_OPTIONS } from './constants';
+import type { CardData, Deck } from './types';
 import { socket, sendMessage } from './socket';
 import PlayerList from './components/PlayerList';
 import ResultsDisplay from './components/ResultsDisplay';
 import SetNameModal from './components/SetNameModal';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Eye } from 'lucide-react';
 import VotingDisplay from './components/VotingDisplay';
 import AnimatingCard from './components/AnimatingCard';
 import DeckSelector from './components/DeckSelector';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import BuyMeACoffee from './components/BuyMeACoffee';
+import DeckBuilder from './components/DeckBuilder';
+// Fix: Import the 'PokerCard' component to resolve the 'Cannot find name' error.
+import PokerCard from './components/PokerCard';
 
 type Theme = 'light' | 'dark' | 'system';
+type Page = 'landing' | 'room' | 'deckBuilder';
 
 // --- Landing Page Component ---
 
 interface LandingPageProps {
-    onNavigateToRoom: (code: string) => void;
+    onNavigateToRoom: (code: string, isSpectator: boolean) => void;
+    onNavigateToDeckBuilder: () => void;
     theme: Theme;
     setTheme: (theme: Theme) => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToRoom, theme, setTheme }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToRoom, onNavigateToDeckBuilder, theme, setTheme }) => {
     const [roomCode, setRoomCode] = useState('');
+    const [isSpectator, setIsSpectator] = useState(false);
 
     const generateRoomCode = () => {
         // Generates a 6-character code from a specific set to avoid ambiguous characters (e.g., O/0).
@@ -38,13 +43,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToRoom, theme, setT
 
     const handleCreateRoom = () => {
         const newRoomCode = generateRoomCode();
-        onNavigateToRoom(newRoomCode);
+        onNavigateToRoom(newRoomCode, isSpectator);
     };
 
     const handleJoinRoom = (e: React.FormEvent) => {
         e.preventDefault();
         if (roomCode.trim()) {
-            onNavigateToRoom(roomCode.trim().toUpperCase());
+            onNavigateToRoom(roomCode.trim().toUpperCase(), isSpectator);
         }
     };
 
@@ -57,12 +62,20 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToRoom, theme, setT
                 <h1 className="text-4xl sm:text-5xl font-bold text-slate-700 dark:text-slate-100 mb-4">Planning Poker</h1>
                 <p className="text-slate-500 dark:text-slate-400 mb-8">Estimate tasks with your team, in real-time.</p>
 
-                <button
-                    onClick={handleCreateRoom}
-                    className="w-full px-4 py-3 bg-sky-600 text-white font-bold rounded-lg shadow-md hover:bg-sky-700 transition-colors text-lg"
-                >
-                    Create a New Room
-                </button>
+                <div className="space-y-4">
+                    <button
+                        onClick={handleCreateRoom}
+                        className="w-full px-4 py-3 bg-sky-600 text-white font-bold rounded-lg shadow-md hover:bg-sky-700 transition-colors text-lg"
+                    >
+                        Create a New Room
+                    </button>
+                     <button
+                        onClick={onNavigateToDeckBuilder}
+                        className="w-full px-4 py-3 bg-slate-600 text-white font-bold rounded-lg shadow-md hover:bg-slate-700 transition-colors text-lg"
+                    >
+                        Custom Decks
+                    </button>
+                </div>
 
                 <div className="flex items-center my-6">
                     <hr className="flex-grow border-t border-slate-300 dark:border-slate-600" />
@@ -89,6 +102,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToRoom, theme, setT
                         Join Room
                     </button>
                 </form>
+                 <div className="mt-6">
+                    <label htmlFor="spectator-checkbox" className="flex items-center justify-center gap-2 text-slate-600 dark:text-slate-300 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            id="spectator-checkbox"
+                            checked={isSpectator}
+                            onChange={(e) => setIsSpectator(e.target.checked)}
+                            className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                        />
+                        Join as Spectator
+                    </label>
+                </div>
             </div>
              <footer className="w-full max-w-5xl mx-auto text-center mt-12 text-slate-500 dark:text-slate-400 text-sm flex flex-col items-center gap-4">
                 <p>Built with React, Cloudflare Workers, and Durable Objects.</p>
@@ -107,6 +132,15 @@ interface User {
   vote: CardData | null;
   avatar?: string;
   colorId?: string;
+  isSpectator?: boolean;
+}
+
+interface ServerState {
+    type: 'state';
+    users: User[];
+    revealed: boolean;
+    deckId: string;
+    activeCustomDeck?: Deck | null;
 }
 
 interface PokerRoomProps {
@@ -124,6 +158,30 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
   const [isNameModalOpen, setIsNameModalOpen] = useState(false);
   const [animatingCard, setAnimatingCard] = useState<{ card: CardData; rect: DOMRect } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [allDecks, setAllDecks] = useState<Record<string, Deck>>(DECKS);
+
+  useEffect(() => {
+    // This effect runs once to load custom decks from localStorage.
+    try {
+        const customDecksJSON = localStorage.getItem('customDecks');
+        if (customDecksJSON) {
+            const customDecks: Deck[] = JSON.parse(customDecksJSON);
+            const customDecksRecord: Record<string, Deck> = {};
+            customDecks.forEach(deck => {
+                // Rehydrate icon components from their stored string IDs.
+                const rehydratedCards = deck.cards.map(card => ({
+                    ...card,
+                    icon: card.iconId ? ICON_OPTIONS[card.iconId] : undefined
+                }));
+                customDecksRecord[deck.id] = { ...deck, cards: rehydratedCards };
+            });
+            // Merge default decks with custom decks.
+            setAllDecks(prevDecks => ({ ...prevDecks, ...customDecksRecord }));
+        }
+    } catch (error) {
+        console.error("Failed to load or parse custom decks:", error);
+    }
+  }, []);
 
   useEffect(() => {
     let currentUserId = localStorage.getItem('userId');
@@ -137,34 +195,55 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
     if (!name) {
       setIsNameModalOpen(true);
     }
+    
+    const isSpectator = localStorage.getItem('isSpectator') === 'true';
 
     const handleSocketMessage = (event: MessageEvent) => {
-      const data = JSON.parse(event.data);
+      const data: ServerState = JSON.parse(event.data);
       if (data.type === 'state') {
-        const currentDeckCards = DECKS[data.deckId]?.cards || DECKS.fibonacci.cards;
-        // Rehydrate user votes with full card data, including the icon component,
-        // which is lost during JSON serialization over the WebSocket.
-        const rehydratedUsers = data.users.map((user: User) => {
-            if (user.vote) {
-                const originalCard = currentDeckCards.find(c => c.value === user.vote?.value);
-                return { ...user, vote: originalCard || null };
-            }
-            return user;
-        });
-        setUsers(rehydratedUsers);
-        setRevealed(data.revealed);
-        setDeckId(data.deckId);
+          let currentDeckCards: CardData[] = [];
+          let deckToUse: Deck | undefined;
+
+          // The server is the source of truth for the active custom deck.
+          if (data.activeCustomDeck) {
+              const rehydratedDeck: Deck = {
+                  ...data.activeCustomDeck,
+                  cards: data.activeCustomDeck.cards.map(card => ({
+                      ...card,
+                      icon: card.iconId ? ICON_OPTIONS[card.iconId] : undefined
+                  }))
+              };
+              // Dynamically add the custom deck from the server to our local state
+              // so it renders correctly for all clients.
+              setAllDecks(prev => ({ ...prev, [rehydratedDeck.id]: rehydratedDeck }));
+              deckToUse = rehydratedDeck;
+          } else {
+              deckToUse = allDecks[data.deckId];
+          }
+
+          currentDeckCards = deckToUse?.cards || DECKS.fibonacci.cards;
+        
+          const rehydratedUsers = data.users.map((user: User) => {
+              if (user.vote) {
+                  const originalCard = currentDeckCards.find(c => c.value === user.vote?.value);
+                  return { ...user, vote: originalCard || null };
+              }
+              return user;
+          });
+          setUsers(rehydratedUsers);
+          setRevealed(data.revealed);
+          setDeckId(data.deckId);
       }
     };
 
-    socket.connect(currentUserId, roomCode);
+    socket.connect(currentUserId, roomCode, isSpectator);
     socket.subscribe(handleSocketMessage);
 
     return () => {
       socket.unsubscribe(handleSocketMessage);
       socket.disconnect();
     };
-  }, [roomCode]);
+  }, [roomCode, allDecks]); // Re-run if allDecks changes to ensure message handler has latest decks.
   
   const handleSaveProfile = (name: string, avatarId: string, colorId: string) => {
       localStorage.setItem('userName', name);
@@ -181,6 +260,20 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
     const rect = element.getBoundingClientRect();
     setAnimatingCard({ card, rect });
     sendMessage({ type: 'vote', card });
+  };
+  
+  const handleDeckChange = (newDeckId: string) => {
+    const selectedDeck = allDecks[newDeckId];
+    if (selectedDeck && selectedDeck.id.startsWith('custom-')) {
+        // Sanitize the deck for transport: remove React components (the 'icon' property)
+        const transportableDeck = {
+            ...selectedDeck,
+            cards: selectedDeck.cards.map(({ icon, ...rest }) => rest)
+        };
+        sendMessage({ type: 'setCustomDeck', deck: transportableDeck });
+    } else {
+        sendMessage({ type: 'setDeck', deckId: newDeckId });
+    }
   };
 
   const handleReveal = () => {
@@ -205,9 +298,11 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
   };
   
   const currentUser = users.find(u => u.id === userId);
-  const isHost = users.length > 0 && users[0].id === userId;
-  const hasVotes = users.some(user => user.vote !== null);
-  const cardsToDisplay = DECKS[deckId]?.cards || DECKS.fibonacci.cards;
+  const players = users.filter(u => !u.isSpectator);
+  const host = users.find(u => !u.isSpectator);
+  const isHost = host ? host.id === userId : false;
+  const hasVotes = players.some(user => user.vote !== null);
+  const cardsToDisplay = allDecks[deckId]?.cards || DECKS.fibonacci.cards;
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex flex-col items-center p-4 sm:p-8 font-sans">
@@ -219,7 +314,7 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
             onAnimationEnd={handleAnimationEnd}
           />
        )}
-      <header className="w-full max-w-6xl mx-auto text-center mb-8 relative">
+      <header className="w-full max-w-6xl mx-auto text-center mb-4 relative">
         <button 
           onClick={onLeave} 
           className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
@@ -242,6 +337,12 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
             <ThemeSwitcher theme={theme} setTheme={setTheme} />
         </div>
       </header>
+       {currentUser?.isSpectator && (
+          <div className="w-full max-w-6xl mx-auto mb-4 p-3 bg-sky-100 dark:bg-sky-900/50 border border-sky-200 dark:border-sky-800 rounded-lg text-center flex items-center justify-center gap-2">
+              <Eye className="h-5 w-5 text-sky-600 dark:text-sky-300" />
+              <p className="font-semibold text-sky-700 dark:text-sky-300">You are in spectator mode. You can watch but not vote.</p>
+          </div>
+       )}
 
       <main className="w-full max-w-6xl mx-auto flex-grow flex flex-col items-center">
         <div className="w-full flex flex-col md:flex-row gap-8">
@@ -250,9 +351,9 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
                 <div className="mt-4 flex flex-col space-y-2">
                     {isHost && (
                         <DeckSelector
-                          decks={DECKS}
+                          decks={allDecks}
                           currentDeckId={deckId}
-                          onChange={(newDeckId) => sendMessage({ type: 'setDeck', deckId: newDeckId })}
+                          onChange={handleDeckChange}
                           isDisabled={hasVotes && !revealed}
                         />
                     )}
@@ -281,28 +382,32 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
             </aside>
             <section className="flex-grow md:w-3/4 min-h-[420px] w-full flex items-center justify-center">
                 {revealed ? (
-                    <ResultsDisplay users={users} />
+                    <ResultsDisplay users={players} />
                 ) : hasVotes ? (
-                    <VotingDisplay users={users} />
+                    <VotingDisplay users={players} />
                 ) : (
                     <div className="text-center text-slate-500 dark:text-slate-400">
-                        <h2 className="text-2xl font-semibold dark:text-slate-200">Select your card</h2>
+                        <h2 className="text-2xl font-semibold dark:text-slate-200">
+                            {currentUser?.isSpectator ? "Waiting for players to vote..." : "Select your card"}
+                        </h2>
                         <p>Votes will be revealed by the host.</p>
                     </div>
                 )}
             </section>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 sm:gap-6 w-full mt-12">
-          {cardsToDisplay.map((card) => (
-            <PokerCard
-              key={card.value}
-              card={card}
-              isSelected={currentUser?.vote?.value === card.value}
-              onClick={handleCardSelect}
-            />
-          ))}
-        </div>
+        {!currentUser?.isSpectator && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 sm:gap-6 w-full mt-12">
+            {cardsToDisplay.map((card) => (
+                <PokerCard
+                key={card.value}
+                card={card}
+                isSelected={currentUser?.vote?.value === card.value}
+                onClick={handleCardSelect}
+                />
+            ))}
+            </div>
+        )}
       </main>
 
       <footer className="w-full max-w-5xl mx-auto text-center mt-12 text-slate-500 dark:text-slate-400 text-sm flex flex-col items-center gap-4">
@@ -317,6 +422,7 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
 // --- Main App Component (Router) ---
 
 const App: React.FC = () => {
+    const [page, setPage] = useState<Page>('landing');
     const [roomCode, setRoomCode] = useState<string | null>(null);
     const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'system');
 
@@ -349,6 +455,7 @@ const App: React.FC = () => {
         const path = window.location.pathname;
         const setRoomFromCode = (code: string) => {
             setRoomCode(code.toUpperCase());
+            setPage('room');
             window.history.replaceState({}, '', '/');
         }
 
@@ -364,19 +471,34 @@ const App: React.FC = () => {
         }
     }, []);
 
-    const handleNavigateToRoom = (code: string) => {
+    const handleNavigateToRoom = (code: string, isSpectator: boolean) => {
+        localStorage.setItem('isSpectator', isSpectator ? 'true' : 'false');
         setRoomCode(code.toUpperCase());
+        setPage('room');
     };
 
     const handleLeaveRoom = () => {
         setRoomCode(null);
+        setPage('landing');
+    };
+    
+    const handleNavigateToDeckBuilder = () => {
+        setPage('deckBuilder');
     };
 
-    if (roomCode) {
+    const handleLeaveDeckBuilder = () => {
+        setPage('landing');
+    };
+
+    if (page === 'room' && roomCode) {
         return <PokerRoom roomCode={roomCode} onLeave={handleLeaveRoom} theme={theme} setTheme={setTheme} />;
     }
     
-    return <LandingPage onNavigateToRoom={handleNavigateToRoom} theme={theme} setTheme={setTheme} />;
+    if (page === 'deckBuilder') {
+        return <DeckBuilder onLeave={handleLeaveDeckBuilder} theme={theme} setTheme={setTheme} />;
+    }
+    
+    return <LandingPage onNavigateToRoom={handleNavigateToRoom} onNavigateToDeckBuilder={handleNavigateToDeckBuilder} theme={theme} setTheme={setTheme} />;
 };
 
 export default App;
