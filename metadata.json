@@ -1,0 +1,5 @@
+{
+  "name": "Scrum Planning Poker",
+  "description": "A simple and aesthetic Scrum Planning Poker web application for agile teams to estimate tasks. Users can select a card to represent their estimate, which is then displayed.",
+  "requestFramePermissions": []
+}
