@@ -1,15 +1,16 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import type { CardData } from '../types';
 import { CardCornerIcon } from '../constants';
 
 interface PokerCardProps {
   card: CardData;
   isSelected: boolean;
-  onClick: (card: CardData) => void;
+  onClick: (card: CardData, element: HTMLDivElement) => void;
   size?: 'small' | 'large';
 }
 
 const PokerCard: React.FC<PokerCardProps> = ({ card, isSelected, onClick, size = 'small' }) => {
+  const cardRef = useRef<HTMLDivElement>(null);
   const { value, color, icon: Icon, display } = card;
 
   const sizeClasses = {
@@ -30,10 +31,16 @@ const PokerCard: React.FC<PokerCardProps> = ({ card, isSelected, onClick, size =
   };
 
   const currentSize = sizeClasses[size];
-  const clickHandler = isSelected ? () => {} : () => onClick(card);
+  
+  const clickHandler = () => {
+      if (!isSelected && cardRef.current) {
+        onClick(card, cardRef.current);
+      }
+  };
 
   return (
     <div
+      ref={cardRef}
       className={`
         ${color} 
         ${currentSize.container}

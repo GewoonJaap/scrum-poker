@@ -8,6 +8,7 @@ import ResultsDisplay from './components/ResultsDisplay';
 import SetNameModal from './components/SetNameModal';
 import { ArrowLeft } from 'lucide-react';
 import VotingDisplay from './components/VotingDisplay';
+import AnimatingCard from './components/AnimatingCard';
 
 // --- Landing Page Component ---
 
@@ -99,8 +100,8 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
   const [userId, setUserId] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [revealed, setRevealed] = useState(false);
-  const [selectedCard, setSelectedCard] = useState<CardData | null>(null);
   const [isNameModalOpen, setIsNameModalOpen] = useState(false);
+  const [animatingCard, setAnimatingCard] = useState<{ card: CardData; rect: DOMRect } | null>(null);
 
   useEffect(() => {
     let currentUserId = localStorage.getItem('userId');
@@ -160,8 +161,12 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
       setIsNameModalOpen(false);
   }
 
-  const handleCardSelect = (card: CardData) => {
-    setSelectedCard(card);
+  const handleCardSelect = (card: CardData, element: HTMLElement) => {
+    // Prevent starting a new animation while one is in progress
+    if (animatingCard) return;
+
+    const rect = element.getBoundingClientRect();
+    setAnimatingCard({ card, rect });
     sendMessage({ type: 'vote', card });
   };
 
@@ -170,9 +175,12 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
   };
 
   const handleReset = () => {
-    setSelectedCard(null);
     sendMessage({ type: 'reset' });
   };
+
+  const handleAnimationEnd = () => {
+    setAnimatingCard(null);
+  }
   
   const currentUser = users.find(u => u.id === userId);
   const isHost = users.length > 0 && users[0].id === userId;
@@ -181,6 +189,13 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave }) => {
   return (
     <div className="min-h-screen bg-[#e0f7fa] flex flex-col items-center p-4 sm:p-8 font-sans">
       <SetNameModal isOpen={isNameModalOpen} onSave={handleSetName} />
+       {animatingCard && (
+          <AnimatingCard
+            card={animatingCard.card}
+            startRect={animatingCard.rect}
+            onAnimationEnd={handleAnimationEnd}
+          />
+       )}
       <header className="w-full max-w-6xl mx-auto text-center mb-8 relative">
         <button 
           onClick={onLeave} 

@@ -23,6 +23,7 @@ interface Env {
 export class PokerRoom {
   private sessions: Session[];
   private users: Record<string, User>;
+  private userList: string[]; // To maintain user join order, userList[0] is the host.
   private revealed: boolean;
   private state: DurableObjectState;
 
@@ -30,6 +31,7 @@ export class PokerRoom {
     this.state = state;
     this.sessions = [];
     this.users = {};
+    this.userList = [];
     this.revealed = false;
   }
 
@@ -64,9 +66,10 @@ export class PokerRoom {
     this.sessions.push({ socket, userId });
     console.log(`[${this.state.id.toString()}] Accepted WebSocket connection for user: ${userId}`);
     
-    // Initialize user if not present
+    // Initialize user if not present and add them to the ordered list
     if (!this.users[userId]) {
         this.users[userId] = { id: userId, name: `User ${userId.substring(0, 4)}`, vote: null };
+        this.userList.push(userId);
         console.log(`[${this.state.id.toString()}] Initialized new user: ${JSON.stringify(this.users[userId])}`);
     }
 
@@ -83,6 +86,8 @@ export class PokerRoom {
                 console.warn(`[${this.state.id.toString()}] Received message from disconnected user ${userId}. Ignoring.`);
                 return;
             }
+            
+            const isHost = this.userList.length > 0 && this.userList[0] === userId;
 
             switch (data.type) {
                 case 'vote':
@@ -90,15 +95,23 @@ export class PokerRoom {
                     this.broadcastState();
                     break;
                 case 'reveal':
-                    this.revealed = true;
-                    this.broadcastState();
+                    if (isHost) {
+                        this.revealed = true;
+                        this.broadcastState();
+                    } else {
+                        console.warn(`[${this.state.id.toString()}] Non-host user ${userId} attempted to reveal.`);
+                    }
                     break;
                 case 'reset':
-                    this.revealed = false;
-                    for (const u of Object.values(this.users)) {
-                        u.vote = null;
+                    if (isHost) {
+                        this.revealed = false;
+                        for (const u of Object.values(this.users)) {
+                            u.vote = null;
+                        }
+                        this.broadcastState();
+                    } else {
+                        console.warn(`[${this.state.id.toString()}] Non-host user ${userId} attempted to reset.`);
                     }
-                    this.broadcastState();
                     break;
                 case 'setName':
                     if (data.name) {
@@ -120,6 +133,7 @@ export class PokerRoom {
         // Only remove user if they have no other open sessions
         if (!this.sessions.some(s => s.userId === userId)) {
           delete this.users[userId];
+          this.userList = this.userList.filter(id => id !== userId);
         }
         this.broadcastState();
     });
@@ -133,7 +147,8 @@ export class PokerRoom {
     if (!message) {
       const state = {
         type: 'state',
-        users: Object.values(this.users),
+        // Use the ordered list to build the users array, ensuring the host is always first
+        users: this.userList.map(id => this.users[id]).filter(Boolean),
         revealed: this.revealed,
       };
       message = JSON.stringify(state);
@@ -159,6 +174,7 @@ export class PokerRoom {
         if (!userHasOtherSessions) {
           console.log(`[${this.state.id.toString()}] Removing user ${s.userId} due to dead socket.`);
           delete this.users[s.userId];
+          this.userList = this.userList.filter(id => id !== s.userId);
         }
       });
 

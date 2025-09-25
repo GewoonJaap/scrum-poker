@@ -19,9 +19,14 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, revealed }) => {
     <div className="bg-white p-4 rounded-lg shadow-md">
       <h3 className="text-xl font-bold text-slate-700 mb-4">Players ({users.length})</h3>
       <ul className="space-y-3">
-        {users.map((user) => (
+        {users.map((user, index) => (
           <li key={user.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-md">
-            <span className="font-semibold text-slate-600">{user.name}</span>
+            <div className="flex items-center gap-2 overflow-hidden">
+                <span className="font-semibold text-slate-600 truncate" title={user.name}>{user.name}</span>
+                {index === 0 && (
+                     <span className="text-xs font-bold bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full flex-shrink-0">HOST</span>
+                )}
+            </div>
             <div className="flex items-center gap-2" style={{minWidth: '60px', justifyContent: 'flex-end'}}>
                 {(() => {
                     if (revealed && user.vote) {
