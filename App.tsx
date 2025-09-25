@@ -200,6 +200,22 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
       setIsNameModalOpen(true);
     }
   }, []);
+  
+  useEffect(() => {
+    document.title = `Room: ${roomCode} | Planning Poker`;
+    const favicon = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+    const originalFavicon = favicon ? favicon.href : '';
+    if (favicon) {
+      favicon.href = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎲</text></svg>`;
+    }
+
+    return () => {
+      // The main App component will reset the title on page change.
+      if (favicon) {
+        favicon.href = originalFavicon;
+      }
+    };
+  }, [roomCode]);
 
   // On every render, we update the ref with the latest handler function.
   // This new function will have the latest state in its closure.
@@ -448,6 +464,22 @@ const App: React.FC = () => {
     const [page, setPage] = useState<Page>('landing');
     const [roomCode, setRoomCode] = useState<string | null>(null);
     const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'system');
+
+    // Effect for managing page titles for SEO and UX
+    useEffect(() => {
+        switch(page) {
+            case 'room':
+                // This is handled by the PokerRoom component itself
+                break;
+            case 'deckBuilder':
+                document.title = 'Deck Builder | Scrum Planning Poker';
+                break;
+            case 'landing':
+            default:
+                document.title = 'Scrum Planning Poker | Real-Time Agile Estimation';
+                break;
+        }
+    }, [page]);
 
     useEffect(() => {
         const root = window.document.documentElement;

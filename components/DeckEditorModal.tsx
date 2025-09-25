@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { CardData, Deck } from '../types';
 import { ICON_OPTIONS, CARD_COLORS, CARD_GRADIENTS } from '../constants';
 import PokerCard from './PokerCard';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, Trash2, X, Pencil } from 'lucide-react';
 
 interface DeckEditorModalProps {
     deck: Deck | null;
@@ -13,33 +13,76 @@ interface DeckEditorModalProps {
 const DeckEditorModal: React.FC<DeckEditorModalProps> = ({ deck, onSave, onClose }) => {
     const [deckName, setDeckName] = useState('');
     const [cards, setCards] = useState<CardData[]>([]);
-    const [newCardValue, setNewCardValue] = useState('');
-    const [newCardColor, setNewCardColor] = useState(CARD_COLORS[10]);
-    const [newCardIconId, setNewCardIconId] = useState<string | null>(null);
-    const [newCardEmojiIcon, setNewCardEmojiIcon] = useState('');
+    
+    // State for the form fields
+    const [cardValue, setCardValue] = useState('');
+    const [cardColor, setCardColor] = useState(CARD_COLORS[10]);
+    const [cardIconId, setCardIconId] = useState<string | null>(null);
+    const [cardEmojiIcon, setCardEmojiIcon] = useState('');
+
+    // State to track editing
+    const [editingCardIndex, setEditingCardIndex] = useState<number | null>(null);
+
+    const resetForm = () => {
+        setEditingCardIndex(null);
+        setCardValue('');
+        setCardColor(CARD_COLORS[10]);
+        setCardIconId(null);
+        setCardEmojiIcon('');
+    };
 
     useEffect(() => {
         if (deck) {
             setDeckName(deck.name);
             setCards(deck.cards);
+        } else {
+            // Reset fields for a new blank deck
+            setDeckName('');
+            setCards([]);
         }
+        resetForm(); // Reset form whenever the deck changes
     }, [deck]);
 
     const handleAddCard = () => {
-        if (!newCardValue.trim()) return;
+        if (!cardValue.trim()) return;
         const newCard: CardData = {
-            value: newCardValue.trim(),
-            color: newCardColor,
-            iconId: newCardIconId || undefined,
-            emojiIcon: newCardEmojiIcon || undefined,
+            value: cardValue.trim(),
+            color: cardColor,
+            iconId: cardIconId || undefined,
+            emojiIcon: cardEmojiIcon || undefined,
         };
         setCards([...cards, newCard]);
-        setNewCardValue('');
-        setNewCardIconId(null);
-        setNewCardEmojiIcon('');
+        resetForm();
+    };
+
+    const handleEditCard = (index: number) => {
+        const cardToEdit = cards[index];
+        setEditingCardIndex(index);
+        setCardValue(cardToEdit.value);
+        setCardColor(cardToEdit.color);
+        setCardIconId(cardToEdit.iconId || null);
+        setCardEmojiIcon(cardToEdit.emojiIcon || '');
+    };
+
+    const handleUpdateCard = () => {
+        if (editingCardIndex === null || !cardValue.trim()) return;
+        const updatedCard: CardData = {
+            value: cardValue.trim(),
+            color: cardColor,
+            iconId: cardIconId || undefined,
+            emojiIcon: cardEmojiIcon || undefined,
+        };
+        const updatedCards = cards.map((card, index) =>
+            index === editingCardIndex ? updatedCard : card
+        );
+        setCards(updatedCards);
+        resetForm();
     };
 
     const handleRemoveCard = (index: number) => {
+        if (editingCardIndex === index) {
+            resetForm();
+        }
         setCards(cards.filter((_, i) => i !== index));
     };
 
@@ -55,24 +98,24 @@ const DeckEditorModal: React.FC<DeckEditorModalProps> = ({ deck, onSave, onClose
 
     const handleEmojiIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const emoji = e.target.value.slice(0, 2); // Limit to handle complex emojis
-        setNewCardEmojiIcon(emoji);
+        setCardEmojiIcon(emoji);
         if (emoji) {
-            setNewCardIconId(null); // Deselect lucide icon
+            setCardIconId(null); // Deselect lucide icon
         }
     };
     
     const handleIconSelect = (id: string | null) => {
-        setNewCardIconId(id);
+        setCardIconId(id);
         if (id) {
-            setNewCardEmojiIcon(''); // Deselect emoji icon
+            setCardEmojiIcon(''); // Deselect emoji icon
         }
     };
 
     const previewCard: CardData = {
-        value: newCardValue.trim() || '?',
-        color: newCardColor,
-        icon: newCardIconId ? ICON_OPTIONS[newCardIconId] : undefined,
-        emojiIcon: newCardEmojiIcon || undefined,
+        value: cardValue.trim() || '?',
+        color: cardColor,
+        icon: cardIconId ? ICON_OPTIONS[cardIconId] : undefined,
+        emojiIcon: cardEmojiIcon || undefined,
     };
     
     return (
@@ -107,6 +150,7 @@ const DeckEditorModal: React.FC<DeckEditorModalProps> = ({ deck, onSave, onClose
                                         {card.emojiIcon ? <span>{card.emojiIcon}</span> : card.iconId ? <div className="w-5 h-5">{React.createElement(ICON_OPTIONS[card.iconId] || 'div')}</div> : card.value}
                                     </div>
                                     <span className="font-semibold flex-grow">{card.value}</span>
+                                    <button onClick={() => handleEditCard(i)} className="p-1 text-slate-500 hover:text-sky-500"><Pencil size={16} /></button>
                                     <button onClick={() => handleRemoveCard(i)} className="p-1 text-slate-500 hover:text-rose-500"><Trash2 size={16} /></button>
                                 </div>
                             ))}
@@ -114,9 +158,11 @@ const DeckEditorModal: React.FC<DeckEditorModalProps> = ({ deck, onSave, onClose
                         </div>
                     </div>
                     
-                    {/* Add Card Section */}
+                    {/* Add/Edit Card Section */}
                     <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg">
-                        <h3 className="text-lg font-bold text-slate-600 dark:text-slate-300 mb-3">Add a Card</h3>
+                        <h3 className="text-lg font-bold text-slate-600 dark:text-slate-300 mb-3">
+                           {editingCardIndex !== null ? 'Edit Card' : 'Add a Card'}
+                        </h3>
                         <div className="flex flex-col md:flex-row gap-6">
                             <div className="flex-grow">
                                 <label htmlFor="card-value" className="block text-sm font-bold text-slate-500 dark:text-slate-400 mb-1">Value</label>
@@ -124,11 +170,11 @@ const DeckEditorModal: React.FC<DeckEditorModalProps> = ({ deck, onSave, onClose
                                 <input
                                     id="card-value"
                                     type="text"
-                                    value={newCardValue}
-                                    onChange={(e) => setNewCardValue(e.target.value)}
+                                    value={cardValue}
+                                    onChange={(e) => setCardValue(e.target.value)}
                                     placeholder="e.g., 8, XL, ☕"
                                     className="w-full px-3 py-2 border border-slate-300 rounded-md dark:bg-slate-700 dark:border-slate-600"
-                                    onKeyDown={e => e.key === 'Enter' && handleAddCard()}
+                                    onKeyDown={e => e.key === 'Enter' && (editingCardIndex !== null ? handleUpdateCard() : handleAddCard())}
                                 />
 
                                 <h4 className="text-sm font-bold text-slate-500 dark:text-slate-400 mt-4 mb-1">Center Display (Optional)</h4>
@@ -138,7 +184,7 @@ const DeckEditorModal: React.FC<DeckEditorModalProps> = ({ deck, onSave, onClose
                                 <input
                                     id="emoji-icon"
                                     type="text"
-                                    value={newCardEmojiIcon}
+                                    value={cardEmojiIcon}
                                     onChange={handleEmojiIconChange}
                                     placeholder="e.g., 🦄"
                                     className="w-full px-3 py-2 border border-slate-300 rounded-md dark:bg-slate-700 dark:border-slate-600"
@@ -148,7 +194,7 @@ const DeckEditorModal: React.FC<DeckEditorModalProps> = ({ deck, onSave, onClose
                                 <label className="block text-sm font-bold text-slate-500 dark:text-slate-400 mt-4 mb-2">Color</label>
                                 <div className="grid grid-cols-9 gap-2">
                                     {CARD_COLORS.map(color => (
-                                        <button key={color} onClick={() => setNewCardColor(color)} className={`w-full aspect-square rounded-full transition-transform hover:scale-110 ${color} ${newCardColor === color ? 'ring-2 ring-offset-2 ring-sky-500 dark:ring-offset-slate-800' : ''}`} />
+                                        <button key={color} onClick={() => setCardColor(color)} className={`w-full aspect-square rounded-full transition-transform hover:scale-110 ${color} ${cardColor === color ? 'ring-2 ring-offset-2 ring-sky-500 dark:ring-offset-slate-800' : ''}`} />
                                     ))}
                                 </div>
                                 
@@ -157,8 +203,8 @@ const DeckEditorModal: React.FC<DeckEditorModalProps> = ({ deck, onSave, onClose
                                     {CARD_GRADIENTS.map(gradient => (
                                         <button 
                                             key={gradient.id} 
-                                            onClick={() => setNewCardColor(gradient.classes)} 
-                                            className={`w-full aspect-square rounded-full transition-transform hover:scale-110 ${gradient.classes} ${newCardColor === gradient.classes ? 'ring-2 ring-offset-2 ring-sky-500 dark:ring-offset-slate-800' : ''}`}
+                                            onClick={() => setCardColor(gradient.classes)} 
+                                            className={`w-full aspect-square rounded-full transition-transform hover:scale-110 ${gradient.classes} ${cardColor === gradient.classes ? 'ring-2 ring-offset-2 ring-sky-500 dark:ring-offset-slate-800' : ''}`}
                                             title={gradient.name}
                                         />
                                     ))}
@@ -168,11 +214,11 @@ const DeckEditorModal: React.FC<DeckEditorModalProps> = ({ deck, onSave, onClose
                                     <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Icon</label>
                                     <div className="p-3 bg-slate-200 dark:bg-slate-700 rounded-md max-h-32 overflow-y-auto">
                                         <div className="grid grid-cols-8 gap-2">
-                                             <button onClick={() => handleIconSelect(null)} className={`w-full aspect-square flex items-center justify-center rounded-md transition-colors ${!newCardIconId ? 'bg-sky-500 text-white' : 'bg-white dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500'}`}>
+                                             <button onClick={() => handleIconSelect(null)} className={`w-full aspect-square flex items-center justify-center rounded-md transition-colors ${!cardIconId ? 'bg-sky-500 text-white' : 'bg-white dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500'}`}>
                                                 <X size={18} />
                                             </button>
                                             {Object.entries(ICON_OPTIONS).map(([id, Icon]) => (
-                                                <button key={id} onClick={() => handleIconSelect(id)} className={`w-full aspect-square flex items-center justify-center rounded-md transition-colors ${newCardIconId === id ? 'bg-sky-500 text-white' : 'bg-white dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500'}`}>
+                                                <button key={id} onClick={() => handleIconSelect(id)} className={`w-full aspect-square flex items-center justify-center rounded-md transition-colors ${cardIconId === id ? 'bg-sky-500 text-white' : 'bg-white dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500'}`}>
                                                     <Icon />
                                                 </button>
                                             ))}
@@ -184,9 +230,20 @@ const DeckEditorModal: React.FC<DeckEditorModalProps> = ({ deck, onSave, onClose
                             <div className="flex flex-col items-center gap-4">
                                 <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Live Preview</span>
                                 <PokerCard card={previewCard} isSelected={false} onClick={() => {}} />
-                                <button onClick={handleAddCard} disabled={!newCardValue.trim()} className="w-full px-4 py-2 bg-green-500 text-white font-bold rounded-lg shadow-md hover:bg-green-600 disabled:bg-slate-400 flex items-center justify-center gap-2">
-                                    <Plus size={18}/> Add Card
-                                </button>
+                                {editingCardIndex !== null ? (
+                                    <div className="w-full flex flex-col gap-2">
+                                        <button onClick={handleUpdateCard} disabled={!cardValue.trim()} className="w-full px-4 py-2 bg-sky-600 text-white font-bold rounded-lg shadow-md hover:bg-sky-700 disabled:bg-slate-400 flex items-center justify-center gap-2">
+                                            Update Card
+                                        </button>
+                                        <button onClick={resetForm} className="w-full px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-300 dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500">
+                                            Cancel
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button onClick={handleAddCard} disabled={!cardValue.trim()} className="w-full px-4 py-2 bg-green-500 text-white font-bold rounded-lg shadow-md hover:bg-green-600 disabled:bg-slate-400 flex items-center justify-center gap-2">
+                                        <Plus size={18}/> Add Card
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>

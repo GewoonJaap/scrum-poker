@@ -4,7 +4,8 @@ import type { Deck } from '../types';
 import ThemeSwitcher from './ThemeSwitcher';
 import { useDecks } from '../hooks/useDecks';
 import DeckEditorModal from './DeckEditorModal';
-import { ICON_OPTIONS } from '../constants';
+import NewDeckTemplatePicker from './NewDeckTemplatePicker'; // Import the new component
+import { ICON_OPTIONS, DECKS } from '../constants'; // Import default DECKS
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -17,11 +18,11 @@ interface DeckBuilderProps {
 const DeckBuilder: React.FC<DeckBuilderProps> = ({ onLeave, theme, setTheme }) => {
     const [decks, addDeck, updateDeck, deleteDeck] = useDecks();
     const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false); // New state for template picker
     const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
 
     const handleOpenEditorForNew = () => {
-        setEditingDeck(null);
-        setIsEditorOpen(true);
+        setIsTemplatePickerOpen(true); // Open the template picker instead of the editor directly
     };
 
     const handleOpenEditorForEdit = (deck: Deck) => {
@@ -29,8 +30,25 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ onLeave, theme, setTheme }) =
         setIsEditorOpen(true);
     };
 
+    const handleTemplateSelected = (template?: Deck) => {
+        if (template) {
+            // Create a copy of the template deck with a new ID and modified name
+            const newDeck: Deck = {
+                ...template,
+                id: `custom-${crypto.randomUUID()}`,
+                name: `${template.name} (Copy)`,
+            };
+            setEditingDeck(newDeck);
+        } else {
+            // User selected "Start from Blank"
+            setEditingDeck(null);
+        }
+        setIsTemplatePickerOpen(false); // Close template picker
+        setIsEditorOpen(true);         // Open editor
+    };
+
     const handleSaveDeck = (deck: Deck) => {
-        if (editingDeck) {
+        if (editingDeck && decks.some(d => d.id === editingDeck.id)) {
             updateDeck(deck);
         } else {
             addDeck(deck);
@@ -46,6 +64,14 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ onLeave, theme, setTheme }) =
 
     return (
         <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex flex-col items-center p-4 sm:p-8 font-sans">
+            {isTemplatePickerOpen && (
+                <NewDeckTemplatePicker
+                    isOpen={isTemplatePickerOpen}
+                    onClose={() => setIsTemplatePickerOpen(false)}
+                    onSelectTemplate={handleTemplateSelected}
+                    templateDecks={DECKS}
+                />
+            )}
             {isEditorOpen && (
                 <DeckEditorModal
                     deck={editingDeck}
