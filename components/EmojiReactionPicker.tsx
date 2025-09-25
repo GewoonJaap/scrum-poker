@@ -32,12 +32,12 @@ const EmojiReactionPicker: React.FC<EmojiReactionPickerProps> = ({ onEmojiSelect
     return (
         <div ref={wrapperRef} className="relative">
             {isOpen && (
-                <div className="absolute bottom-full right-0 mb-2 bg-white dark:bg-slate-700 p-2 rounded-lg shadow-xl grid grid-cols-4 gap-2">
+                <div className="absolute bottom-full right-0 mb-2 bg-white dark:bg-slate-700 p-1 rounded-full shadow-xl flex items-center gap-1">
                     {EMOJIS.map(emoji => (
                         <button
                             key={emoji}
                             onClick={() => handleSelect(emoji)}
-                            className="text-2xl p-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                            className="text-2xl p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
                             aria-label={`Send ${emoji} reaction`}
                         >
                             {emoji}
