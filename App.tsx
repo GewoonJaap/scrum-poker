@@ -175,6 +175,7 @@ const PokerRoom: React.FC = () => {
   
   const currentUser = users.find(u => u.id === userId);
   const isHost = users.length > 0 && users[0].id === userId;
+  const hasVotes = users.some(user => user.vote !== null);
 
   return (
     <div className="min-h-screen bg-[#e0f7fa] flex flex-col items-center p-4 sm:p-8 font-sans">
@@ -190,10 +191,19 @@ const PokerRoom: React.FC = () => {
                 <PlayerList users={users} revealed={revealed} />
                 <div className="mt-4 flex flex-col space-y-2">
                    {isHost && (
-                    <>
-                        <button onClick={handleReveal} className="px-4 py-2 bg-green-500 text-white font-bold rounded-lg shadow-md hover:bg-green-600 transition-colors w-full">Show Cards</button>
-                        <button onClick={handleReset} className="px-4 py-2 bg-rose-500 text-white font-bold rounded-lg shadow-md hover:bg-rose-600 transition-colors w-full">New Round</button>
-                    </>
+                       revealed ? (
+                           <button onClick={handleReset} className="px-4 py-2 bg-rose-500 text-white font-bold rounded-lg shadow-md hover:bg-rose-600 transition-colors w-full">
+                               New Round
+                           </button>
+                       ) : (
+                           <button
+                               onClick={handleReveal}
+                               disabled={!hasVotes}
+                               className="px-4 py-2 bg-green-500 text-white font-bold rounded-lg shadow-md hover:bg-green-600 transition-colors w-full disabled:bg-slate-400 disabled:cursor-not-allowed"
+                           >
+                               Show Cards
+                           </button>
+                       )
                    )}
                 </div>
             </aside>
