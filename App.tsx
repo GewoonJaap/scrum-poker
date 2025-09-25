@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DECKS, ICON_OPTIONS } from './constants';
-import type { CardData, Deck } from './types';
+import type { CardData, Deck, User, Reaction } from './types';
 import { socket, sendMessage } from './socket';
 import PlayerList from './components/PlayerList';
 import ResultsDisplay from './components/ResultsDisplay';
@@ -12,8 +12,9 @@ import DeckSelector from './components/DeckSelector';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import BuyMeACoffee from './components/BuyMeACoffee';
 import DeckBuilder from './components/DeckBuilder';
-// Fix: Import the 'PokerCard' component to resolve the 'Cannot find name' error.
 import PokerCard from './components/PokerCard';
+import EmojiReactionPicker from './components/EmojiReactionPicker';
+import EmojiReaction from './components/EmojiReaction';
 
 type Theme = 'light' | 'dark' | 'system';
 type Page = 'landing' | 'room' | 'deckBuilder';
@@ -126,15 +127,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToRoom, onNavigateT
 
 // --- Poker Room Component ---
 
-interface User {
-  id: string;
-  name: string;
-  vote: CardData | null;
-  avatar?: string;
-  colorId?: string;
-  isSpectator?: boolean;
-}
-
 interface ServerState {
     type: 'state';
     users: User[];
@@ -142,6 +134,14 @@ interface ServerState {
     deckId: string;
     activeCustomDeck?: Deck | null;
 }
+
+interface ServerReaction {
+    type: 'reaction';
+    emoji: string;
+    user: User;
+}
+
+type ServerMessage = ServerState | ServerReaction;
 
 interface PokerRoomProps {
     roomCode: string;
@@ -159,6 +159,7 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
   const [animatingCard, setAnimatingCard] = useState<{ card: CardData; rect: DOMRect } | null>(null);
   const [copied, setCopied] = useState(false);
   const [allDecks, setAllDecks] = useState<Record<string, Deck>>(DECKS);
+  const [reactions, setReactions] = useState<Reaction[]>([]);
   const messageHandlerRef = useRef<(event: MessageEvent) => void>();
 
 
@@ -201,14 +202,14 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
   }, []);
 
   // On every render, we update the ref with the latest handler function.
-  // This new function will have the latest `allDecks` state in its closure.
+  // This new function will have the latest state in its closure.
   messageHandlerRef.current = (event: MessageEvent) => {
-    const data: ServerState = JSON.parse(event.data);
+    const data: ServerMessage = JSON.parse(event.data);
+    
     if (data.type === 'state') {
         let currentDeckCards: CardData[] = [];
         let deckToUse: Deck | undefined;
 
-        // The server is the source of truth for the active custom deck.
         if (data.activeCustomDeck) {
             const rehydratedDeck: Deck = {
                 ...data.activeCustomDeck,
@@ -217,8 +218,6 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
                     icon: card.iconId ? ICON_OPTIONS[card.iconId] : undefined
                 }))
             };
-            // Dynamically add the custom deck from the server to our local state
-            // so it renders correctly for all clients.
             setAllDecks(prev => ({ ...prev, [rehydratedDeck.id]: rehydratedDeck }));
             deckToUse = rehydratedDeck;
         } else {
@@ -237,21 +236,27 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
         setUsers(rehydratedUsers);
         setRevealed(data.revealed);
         setDeckId(data.deckId);
+    } else if (data.type === 'reaction') {
+        const newReaction: Reaction = {
+            id: crypto.randomUUID(),
+            emoji: data.emoji,
+            user: data.user,
+        };
+        setReactions(currentReactions => [...currentReactions, newReaction]);
+        // Remove the reaction after its animation finishes
+        setTimeout(() => {
+            setReactions(currentReactions => currentReactions.filter(r => r.id !== newReaction.id));
+        }, 4000); // Must match CSS animation duration
     }
   };
 
 
   useEffect(() => {
     // This effect manages the WebSocket connection lifecycle.
-    // It should only run when the room or user changes.
-    if (!userId) {
-        // Don't connect until we have a user ID.
-        return;
-    }
+    if (!userId) return;
     
     const isSpectator = localStorage.getItem('isSpectator') === 'true';
 
-    // A stable function that calls the latest handler from the ref.
     const handleSocketMessage = (event: MessageEvent) => {
         messageHandlerRef.current?.(event);
     };
@@ -263,7 +268,7 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
       socket.unsubscribe(handleSocketMessage);
       socket.disconnect();
     };
-  }, [roomCode, userId]); // Dependency array no longer includes `allDecks`, fixing the reconnect loop.
+  }, [roomCode, userId]);
   
   const handleSaveProfile = (name: string, avatarId: string, colorId: string) => {
       localStorage.setItem('userName', name);
@@ -274,9 +279,7 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
   }
 
   const handleCardSelect = (card: CardData, element: HTMLElement) => {
-    // Prevent starting a new animation while one is in progress
     if (animatingCard) return;
-
     const rect = element.getBoundingClientRect();
     setAnimatingCard({ card, rect });
     sendMessage({ type: 'vote', card });
@@ -285,7 +288,6 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
   const handleDeckChange = (newDeckId: string) => {
     const selectedDeck = allDecks[newDeckId];
     if (selectedDeck && selectedDeck.id.startsWith('custom-')) {
-        // Sanitize the deck for transport: remove React components (the 'icon' property)
         const transportableDeck = {
             ...selectedDeck,
             cards: selectedDeck.cards.map(({ icon, ...rest }) => rest)
@@ -296,22 +298,15 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
     }
   };
 
-  const handleReveal = () => {
-    sendMessage({ type: 'reveal' });
-  };
-
-  const handleReset = () => {
-    sendMessage({ type: 'reset' });
-  };
-
-  const handleAnimationEnd = () => {
-    setAnimatingCard(null);
-  }
+  const handleReveal = () => sendMessage({ type: 'reveal' });
+  const handleReset = () => sendMessage({ type: 'reset' });
+  const handleAnimationEnd = () => setAnimatingCard(null);
+  const handleEmojiSelect = (emoji: string) => sendMessage({ type: 'reaction', emoji });
 
   const handleCopyCode = () => {
       navigator.clipboard.writeText(roomCode).then(() => {
           setCopied(true);
-          setTimeout(() => setCopied(false), 2000); // Reset feedback after 2 seconds
+          setTimeout(() => setCopied(false), 2000);
       }).catch(err => {
           console.error('Failed to copy room code: ', err);
       });
@@ -334,6 +329,11 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
             onAnimationEnd={handleAnimationEnd}
           />
        )}
+      <div className="fixed inset-0 pointer-events-none z-[60]">
+        {reactions.map(reaction => (
+          <EmojiReaction key={reaction.id} reaction={reaction} />
+        ))}
+      </div>
       <header className="w-full max-w-6xl mx-auto text-center mb-4 relative">
         <button 
           onClick={onLeave} 
@@ -364,7 +364,7 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
           </div>
        )}
 
-      <main className="w-full max-w-6xl mx-auto flex-grow flex flex-col items-center">
+      <main className="w-full max-w-6xl mx-auto flex-grow flex flex-col items-center relative">
         <div className="w-full flex flex-col md:flex-row gap-8">
             <aside className="md:w-1/4">
                 <PlayerList users={users} revealed={revealed} />
@@ -428,6 +428,9 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
             ))}
             </div>
         )}
+        <div className="fixed bottom-8 right-8 z-40">
+            <EmojiReactionPicker onEmojiSelect={handleEmojiSelect} />
+        </div>
       </main>
 
       <footer className="w-full max-w-5xl mx-auto text-center mt-12 text-slate-500 dark:text-slate-400 text-sm flex flex-col items-center gap-4">

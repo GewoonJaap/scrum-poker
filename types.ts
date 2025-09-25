@@ -16,3 +16,18 @@ export interface Deck {
   name: string;
   cards: CardData[];
 }
+
+export interface User {
+  id: string;
+  name: string;
+  vote: CardData | null;
+  avatar?: string;
+  colorId?: string;
+  isSpectator?: boolean;
+}
+
+export interface Reaction {
+  id: string;
+  emoji: string;
+  user: User;
+}

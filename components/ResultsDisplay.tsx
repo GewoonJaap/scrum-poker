@@ -1,19 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import type { CardData } from '../types';
+import type { CardData, User } from '../types';
 import PokerCard from './PokerCard';
 import CardBack from './CardBack';
 import Confetti from './Confetti';
 import Avatar from './Avatar';
 import PlayerName from './PlayerName';
-
-interface User {
-  id: string;
-  name: string;
-  vote: CardData | null;
-  avatar?: string;
-  colorId?: string;
-  isSpectator?: boolean;
-}
 
 interface ResultsDisplayProps {
   users: User[];

@@ -1,18 +1,9 @@
 import React from 'react';
-import type { CardData } from '../types';
+import type { User } from '../types';
 import { Circle, Eye } from 'lucide-react';
 import { CardCornerIcon } from '../constants';
 import Avatar from './Avatar';
 import PlayerName from './PlayerName';
-
-interface User {
-  id: string;
-  name: string;
-  vote: CardData | null;
-  avatar?: string;
-  colorId?: string;
-  isSpectator?: boolean;
-}
 
 interface PlayerListProps {
   users: User[];

@@ -191,6 +191,14 @@ export class PokerRoom {
                         console.warn(`[${this.state.id.toString()}] Non-host user ${userId} attempted to set a custom deck.`);
                     }
                     break;
+                case 'reaction':
+                    const reactionMessage = {
+                        type: 'reaction',
+                        emoji: data.emoji,
+                        user: user,
+                    };
+                    this.broadcast(JSON.stringify(reactionMessage));
+                    break;
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -214,48 +222,57 @@ export class PokerRoom {
         console.error(`[${this.state.id.toString()}] Socket error for user ${userId}:`, event);
     });
   }
+  
+  _cleanupDeadSessions(deadSessions: Session[]) {
+    if (deadSessions.length === 0) return;
 
-  broadcastState(message?: string) {
-    if (!message) {
-      const state = {
-        type: 'state',
-        // Use the ordered list to build the users array
-        users: this.userList.map(id => this.users[id]).filter(Boolean),
-        revealed: this.revealed,
-        deckId: this.deckId,
-        activeCustomDeck: this.activeCustomDeck, // Broadcast the active custom deck
-      };
-      message = JSON.stringify(state);
+    this.sessions = this.sessions.filter(s => !deadSessions.includes(s));
+    let stateChanged = false;
+
+    deadSessions.forEach(s => {
+      // Only delete the user if no other active sessions for that user exist.
+      const userHasOtherSessions = this.sessions.some(active => active.userId === s.userId);
+      if (!userHasOtherSessions) {
+        console.log(`[${this.state.id.toString()}] Removing user ${s.userId} due to dead socket.`);
+        delete this.users[s.userId];
+        this.userList = this.userList.filter(id => id !== s.userId);
+        stateChanged = true;
+      }
+    });
+
+    // If the user list changed, we must broadcast the new state to the remaining clients.
+    if (stateChanged) {
+        console.log(`[${this.state.id.toString()}] ${deadSessions.length} sessions were disconnected. Re-broadcasting state.`);
+        this.broadcastState(); // Re-call to broadcast the fresh state.
     }
-
-    console.log(`[${this.state.id.toString()}] Broadcasting state to ${this.sessions.length} clients`);
+  }
+  
+  broadcast(message: string) {
+    console.log(`[${this.state.id.toString()}] Broadcasting message to ${this.sessions.length} clients`);
     
     const deadSessions: Session[] = [];
     this.sessions.forEach(session => {
       try {
-        session.socket.send(message!);
+        session.socket.send(message);
       } catch (e) {
         console.error(`[${this.state.id.toString()}] Failed to send to user ${session.userId}, marking session for removal.`, e);
         deadSessions.push(session);
       }
     });
 
-    if (deadSessions.length > 0) {
-      this.sessions = this.sessions.filter(s => !deadSessions.includes(s));
-      deadSessions.forEach(s => {
-        // Only delete the user if no other active sessions for that user exist.
-        const userHasOtherSessions = this.sessions.some(active => active.userId === s.userId);
-        if (!userHasOtherSessions) {
-          console.log(`[${this.state.id.toString()}] Removing user ${s.userId} due to dead socket.`);
-          delete this.users[s.userId];
-          this.userList = this.userList.filter(id => id !== s.userId);
-        }
-      });
+    this._cleanupDeadSessions(deadSessions);
+  }
 
-      // Since the user list changed, we must broadcast the new state to the remaining clients.
-      console.log(`[${this.state.id.toString()}] ${deadSessions.length} sessions were disconnected. Re-broadcasting state.`);
-      this.broadcastState(); // Re-call to create and broadcast a fresh state message.
-    }
+  broadcastState() {
+    const state = {
+      type: 'state',
+      // Use the ordered list to build the users array
+      users: this.userList.map(id => this.users[id]).filter(Boolean),
+      revealed: this.revealed,
+      deckId: this.deckId,
+      activeCustomDeck: this.activeCustomDeck, // Broadcast the active custom deck
+    };
+    this.broadcast(JSON.stringify(state));
   }
 }
 
