@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DECKS, ICON_OPTIONS } from './constants';
 import type { CardData, Deck } from './types';
 import { socket, sendMessage } from './socket';
@@ -159,6 +159,8 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
   const [animatingCard, setAnimatingCard] = useState<{ card: CardData; rect: DOMRect } | null>(null);
   const [copied, setCopied] = useState(false);
   const [allDecks, setAllDecks] = useState<Record<string, Deck>>(DECKS);
+  const messageHandlerRef = useRef<(event: MessageEvent) => void>();
+
 
   useEffect(() => {
     // This effect runs once to load custom decks from localStorage.
@@ -184,6 +186,7 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
   }, []);
 
   useEffect(() => {
+    // This effect gets the user's ID and name on component mount.
     let currentUserId = localStorage.getItem('userId');
     if (!currentUserId) {
       currentUserId = crypto.randomUUID();
@@ -195,55 +198,72 @@ const PokerRoom: React.FC<PokerRoomProps> = ({ roomCode, onLeave, theme, setThem
     if (!name) {
       setIsNameModalOpen(true);
     }
+  }, []);
+
+  // On every render, we update the ref with the latest handler function.
+  // This new function will have the latest `allDecks` state in its closure.
+  messageHandlerRef.current = (event: MessageEvent) => {
+    const data: ServerState = JSON.parse(event.data);
+    if (data.type === 'state') {
+        let currentDeckCards: CardData[] = [];
+        let deckToUse: Deck | undefined;
+
+        // The server is the source of truth for the active custom deck.
+        if (data.activeCustomDeck) {
+            const rehydratedDeck: Deck = {
+                ...data.activeCustomDeck,
+                cards: data.activeCustomDeck.cards.map(card => ({
+                    ...card,
+                    icon: card.iconId ? ICON_OPTIONS[card.iconId] : undefined
+                }))
+            };
+            // Dynamically add the custom deck from the server to our local state
+            // so it renders correctly for all clients.
+            setAllDecks(prev => ({ ...prev, [rehydratedDeck.id]: rehydratedDeck }));
+            deckToUse = rehydratedDeck;
+        } else {
+            deckToUse = allDecks[data.deckId];
+        }
+
+        currentDeckCards = deckToUse?.cards || DECKS.fibonacci.cards;
+      
+        const rehydratedUsers = data.users.map((user: User) => {
+            if (user.vote) {
+                const originalCard = currentDeckCards.find(c => c.value === user.vote?.value);
+                return { ...user, vote: originalCard || null };
+            }
+            return user;
+        });
+        setUsers(rehydratedUsers);
+        setRevealed(data.revealed);
+        setDeckId(data.deckId);
+    }
+  };
+
+
+  useEffect(() => {
+    // This effect manages the WebSocket connection lifecycle.
+    // It should only run when the room or user changes.
+    if (!userId) {
+        // Don't connect until we have a user ID.
+        return;
+    }
     
     const isSpectator = localStorage.getItem('isSpectator') === 'true';
 
+    // A stable function that calls the latest handler from the ref.
     const handleSocketMessage = (event: MessageEvent) => {
-      const data: ServerState = JSON.parse(event.data);
-      if (data.type === 'state') {
-          let currentDeckCards: CardData[] = [];
-          let deckToUse: Deck | undefined;
-
-          // The server is the source of truth for the active custom deck.
-          if (data.activeCustomDeck) {
-              const rehydratedDeck: Deck = {
-                  ...data.activeCustomDeck,
-                  cards: data.activeCustomDeck.cards.map(card => ({
-                      ...card,
-                      icon: card.iconId ? ICON_OPTIONS[card.iconId] : undefined
-                  }))
-              };
-              // Dynamically add the custom deck from the server to our local state
-              // so it renders correctly for all clients.
-              setAllDecks(prev => ({ ...prev, [rehydratedDeck.id]: rehydratedDeck }));
-              deckToUse = rehydratedDeck;
-          } else {
-              deckToUse = allDecks[data.deckId];
-          }
-
-          currentDeckCards = deckToUse?.cards || DECKS.fibonacci.cards;
-        
-          const rehydratedUsers = data.users.map((user: User) => {
-              if (user.vote) {
-                  const originalCard = currentDeckCards.find(c => c.value === user.vote?.value);
-                  return { ...user, vote: originalCard || null };
-              }
-              return user;
-          });
-          setUsers(rehydratedUsers);
-          setRevealed(data.revealed);
-          setDeckId(data.deckId);
-      }
+        messageHandlerRef.current?.(event);
     };
 
-    socket.connect(currentUserId, roomCode, isSpectator);
+    socket.connect(userId, roomCode, isSpectator);
     socket.subscribe(handleSocketMessage);
 
     return () => {
       socket.unsubscribe(handleSocketMessage);
       socket.disconnect();
     };
-  }, [roomCode, allDecks]); // Re-run if allDecks changes to ensure message handler has latest decks.
+  }, [roomCode, userId]); // Dependency array no longer includes `allDecks`, fixing the reconnect loop.
   
   const handleSaveProfile = (name: string, avatarId: string, colorId: string) => {
       localStorage.setItem('userName', name);
